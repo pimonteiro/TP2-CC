@@ -4,7 +4,7 @@ class connectionStatus:
         self.destPort = destPort
         self.sourceIP = sourceIP
         self.sourcePort = sourcePort
-        self.datagrams
-        self.arrived
-        
+        self.datagrams[nPackets]
+        self.missing[0]
+
 
