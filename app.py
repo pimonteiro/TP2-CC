@@ -1,10 +1,20 @@
+
+from socket import *
+
+
 def startConnection(ip, port, username, password, action, fileName):
     # preencher com a init da conexao
     return 0
 
 
+
+
+
+
 # Adicionar comandos e flow da aplicaçao
 if __name__ == '__main__':
+
+
     print("IP: ")
     ip = input()
     print("Port: ")
