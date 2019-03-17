@@ -2,10 +2,6 @@
 from socket import *
 
 
-def startConnection(ip, port, username, password, action, fileName):
-    # preencher com a init da conexao
-    return 0
-
 
 
 
