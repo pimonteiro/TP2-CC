@@ -1,5 +1,6 @@
 from socket import *
 
+from transfereCC import *
 
 import json
 
@@ -7,29 +8,26 @@ import json
 serverPort = 12000
 
 
+def createSynAck():
+    synAck = {'header': header(0,1,1), 'totalSegments': 100, 'content': {}}
 
-#inicio da conexão
+    return synAck
+
+
+#inicio da conexão adaptar as funções do recvfrom(2048) e do sendto() - estas funcoes podem ter de estar no transfereCC
 def startServer():
 
     serverSocket = socket(AF_INET, SOCK_DGRAM)
+
     serverSocket.bind(('', serverPort))
 
-    totalSegments = 0
-    firstSegment = 1
+    synAck = createSynAck()
 
-    synAck = {
-        'totalSegments': totalSegments,
-        'firstSegment': firstSegment,
-    }
+    print(synAck)
 
-    synMessage, clientAddress = serverSocket.recvfrom(2048)
+    clientMsg = rcvMsgFromClient(serverSocket)
 
-    decodeMessage = json.loads(synMessage.decode())
-
-
-    bytesMessage = json.dumps(synAck).encode()
-
-    serverSocket.sendto(bytesMessage, clientAddress)
+    sendMsgToClient(synAck, clientMsg)
 
 
     return serverSocket
