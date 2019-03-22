@@ -11,7 +11,6 @@ PDU = 548 #packet data unit
 
 HEADBYTES = 20 #tem de ser fixo para se poder calcular a quantidade de pacotes, mas não precisa de ser 20
 
-
 TYPESYN = 1
 
 TYPEFIN = 2
