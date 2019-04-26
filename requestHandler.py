@@ -11,18 +11,24 @@ class requestHandler(threading.Thread):
         self.data = json.loads(message)["content"]
         self.header = {}
         self.pieces = []
+        self.attemp = 0
         self.on = True
+        
 
     def run(self):
         if(self.auth()):
+            
             if(self.data["action"] == "GET"):
                 #função de mandar dividir e meter os pedaços no array pieces
                 #iniciar a thread do agent udp para mandar os pedaços dos arquivos
+                pass
 
             else:
                 #fazer um pedido de get para o endereço do client mas na porta que o servidor é executado.
+                pass
 
             self.socket.sendto(("from thread: ola\n").encode(),self.address)
+            self.socket.close()
         
         else:
             self.socket.sendto(("from thread: autenticacao invalida").encode(),self.address)

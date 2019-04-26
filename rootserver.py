@@ -11,9 +11,9 @@ while True:
     skt, addr = server.get_request()
     msg = skt[0].decode("utf-8")
     skt = skt[1]
-    print(addr)
-    print(skt)
-    print(msg)
+    print("endereco: " + str(addr))
+    print("socket: " + str(skt))
+    print("mensagem: " + str(msg))
     rh = requestHandler.requestHandler(skt,addr,msg)
     rh.start()
 
