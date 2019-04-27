@@ -4,10 +4,8 @@ import json
 
 
 
-timeout = 0.003
 
-
-PDU = 548 #packet data unit
+MAX_MESSAGE_SIZE = PDU = 2048  #packet data unit
 
 HEADBYTES = 20 #tem de ser fixo para se poder calcular a quantidade de pacotes, mas não precisa de ser 20
 
@@ -17,7 +15,20 @@ TYPEFIN = 2
 
 TYPELOST = 3
 
-#função que estabelece o número de segmentos que vão ser enviados
+TYPENORMAL = 4
+
+
+def createConnectionObject(socketConnection, address):
+    connection = {
+        'socket': socketConnection,
+        'address': address,
+        'totalSegments': 0
+    }
+
+    return connection
+
+
+# Função que estabelece o número de segmentos que vão ser enviados
 def total_Segments(data):
     if (data % (PDU + HEADBYTES)) != 0:
         segments = (data / PDU) + 1
@@ -27,7 +38,7 @@ def total_Segments(data):
     return segments
 
 
-#função que define o conteúdo do cabeçalho
+# Função que define o conteúdo do cabeçalho
 def header(checksum, type, n_sequence):
     head = {}
     head['checksum'] = checksum
@@ -41,105 +52,87 @@ def header(checksum, type, n_sequence):
 
     return head
 
-#criação da mensagem a ser enviada pelo cliente para estabelecer conexão
-def createConnectionMsg(serverName, serverPort, username, password, action, fileName, attempt):
-    connectionMessage = {'header': header(0, TYPESYN, 1), 'content': {}}
+# Criação da mensagem a ser enviada pelo cliente para estabelecer conexão
+def createConnectionMsg(username, password, action, fileName):
+    connectionMessage = {'header': header(0, TYPESYN, 0), 'content': {}}
 
     content = {}
     content["username"] = username
     content["password"] = password
     content["action"] = action  # upload ou download
     content["fileName"] = fileName
-    content["attempt"] = attempt + 1
 
     connectionMessage['content'] = content
 
     return connectionMessage
 
 
-#função que tenta novamente estabelecer a ligação caso não haja resposta do servidor
-def retryConnection(connection, connectionMessage):
+# Função que estabelece os requisitos que o cliente envia ao servidor para estabelecer a conexão
+def startConnection(serverName, serverPort, username, password, action, fileName):
+    socketConnection = socket(AF_INET, SOCK_DGRAM) #cria um socket UDP
 
-    if timeout > 0.003 and connectionMessage["attempt"] <= 3:
-        startConnection(connection["serverName"], connection["serverPort"], connectionMessage["username"],
-                        connectionMessage["password"], connectionMessage["action"],
-                        connectionMessage["fileName"], connectionMessage["attempt"])
+    connection = createConnectionObject(socketConnection, (serverName, serverPort))
 
-    else:
-        return -1
+    startConnectionMessage = createConnectionMsg(username, password, action, fileName)
 
-    return connection
+    sendMessage(connection, startConnectionMessage) #envia a mensagem de ligação
 
+    message, address = recvMessage(connection)
 
-
-
-#função que estabelece os requisitos que o cliente envia ao servidor para estabelecer a conexão
-def startConnection(serverName, serverPort, username, password, action, fileName, attempt):
-    connectionMessage = createConnectionMsg(serverName, serverPort, username, password, action, fileName, attempt)
-
-
-    clientsocket = socket(AF_INET, SOCK_DGRAM) #cria um socket UDP
-
-
-
-    connection = {
-        'clientsocket': clientsocket,
-        'serverPort': serverPort,
-        'serverName': serverName,
-        'totalSegments': 0
-    }
-
-
-    sendFirstMsgToServer(connection, connectionMessage) #envia a mensagem de ligação
-
-    synAck = recvMessageFromServer(connection)
-
-    connection['totalSegments'] = synAck['totalSegments']
-
+    assert connection['address'] == address
+    connection['totalSegments'] = message['totalSegments']
 
     return connection
 
 
-#fecha a conexão
+# Fecha a conexão
 def closeConnection(connection):
-    connection["clientsocket"].close()
+    connection["socket"].close()
 
 
+def acceptConnection(connection):
+    acceptConnectionMessage = {'header': header(0, TYPESYN, 0), 'content': {}}
+
+    content = {}
+    content['totalSegments'] = 0
+    acceptConnectionMessage['content'] = content
+
+    sendMessage(connection, acceptConnectionMessage)
 
 
-#envia mensagem para o cliente (o address tem o IP do cliente e a porta)
-def sendMsgToClient(message, msg):
-
+# Envia mensagem para o cliente (o address tem o IP do cliente e a porta)
+def sendMessage(sock, addr, message):
     bytesMessage = json.dumps(message).encode()
-
-    msg['socket'].sendto(bytesMessage, msg['address'])
+    bytesLength = len(bytesMessage)
+    append = ('0' * (MAX_MESSAGE_SIZE - bytesLength)).encode()
+    bytesMessage += bytesMessage + append
+    sock.sendto(bytesMessage, addr)
 
 
 #recebe mensagens enviadas pelo cliente para o servidor
-def rcvMsgFromClient(socket):
-    message, address = socket.recvfrom(2048)
+def recvMessage(sock):
+    bytesMessage, address = sock.recvfrom(MAX_MESSAGE_SIZE)
+    message = json.loads(bytesMessage.decode())
 
-    decodeMessage = json.loads(message.decode())
+    if data['ack'] == TYPEFIN:
+        sock.close()
+        return 1, {}
+    elif data['ack'] == TYPESYN:
 
-    msg = {
-        'socket': socket,
-        'address': address,
-        'decodeMessage': decodeMessage
-    }
+    elif data['ack'] == TYPELOST:
+        return 3, data
 
-    return msg
+    return message, address
 
 
-#função que devolve a mensagem recebida pelo cliente
-def recvMessageFromServer(connection):
-   newMessage, serverAddress = connection['clientsocket'].recvfrom(2048)
+def sendPacketsToClient(sock, add, data_list):
+    for i in range(0,len(data_list)):
+        data = {
+            'checksum': 0,
+            'n_sequence': i,
+            'content': data_list[i]
+        }
+        if(i == len(data_list)-1):
+            data['ack'] = TYPEFIN;
 
-   decodeMessage = json.loads(newMessage.decode())
-
-   return decodeMessage
-
-#envia a primeira mensagem (SYN) para o servidor
-def sendFirstMsgToServer(connection, message):
-    bytesMessage = json.dumps(message).encode()
-
-    connection["clientsocket"].sendto(bytesMessage, (connection["serverName"], connection["serverPort"]))
+        sendMessage(sock, add, data)
