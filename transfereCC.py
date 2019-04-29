@@ -1,8 +1,5 @@
 from socket import *
-
 import json
-
-
 
 
 MAX_MESSAGE_SIZE = PDU = 2048  #packet data unit

@@ -47,7 +47,7 @@
     },
 
     "payload" : {
-        "total segments" : ""
+        "total_segments" : ""
     }
 }
 
@@ -75,3 +75,6 @@
     }
 }
 
+
+
+{ "header" : {}, "payload" : {"filename" : "CG_TP-master.zip" }}
