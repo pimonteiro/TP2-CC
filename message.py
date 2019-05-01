@@ -1,38 +1,56 @@
 import json
+import copy
 
 
+# TODO: TRANSFORMAR ESSA CLASSE EM CLASSE MAE
 class Handler:
+
+    HEADER = {
+        "checksum": "",
+        "type": 0,
+        "nsequence": 0,
+        "size": 0
+    }
+
+
+    @staticmethod
+    def get_header(type):
+        header = copy.deepcopy(Handler.HEADER)
+        header["type"] = type
+        return header
 
     @staticmethod
     def deserialize(msgbytes):
         data = json.loads(msgbytes.decode())
+        # TODO: VALIDAR CHECKSUM -- SE CHECKSUM ERRADO --- IGNORAR MESSAGEM E RAISE EXCEPTION
         if data['header']['type'] == ConnectionMessage.TYPE:
             msg = ConnectionMessage()
-            msg.message = data
+            msg.set_message(data)
             return msg
         elif data['header']['type'] == AckClientMessage.TYPE:
             msg = AckClientMessage()
-            msg.message = data
+            msg.set_message(data)
             return msg
         elif data['header']['type'] == DataMessage.TYPE:
             msg = DataMessage()
-            msg.message = data
+            msg.set_message(data)
             return msg
         elif data['header']['type'] == TotalSegMessage.TYPE:
             msg = TotalSegMessage()
-            msg.message = data
+            msg.set_message(data)
             return msg
         elif data['header']['type'] == MissingMessage.TYPE:
             msg = MissingMessage()
-            msg.message = data
+            msg.set_message(data)
             return msg
         elif data['header']['type'] == FinMessage.TYPE:
             msg = FinMessage()
-            msg.message = data
+            msg.set_message(data)
             return msg
 
     @staticmethod
     def serialize(msg):
+        # TODO: DEFINIR CHECKSUM
         msgbytes = json.dumps(msg.get_message()).encode()
         return msgbytes
 
@@ -45,13 +63,7 @@ class ConnectionMessage:
     def __init__(self, username="", password="", action="", filename=""):
         self.message =\
         {
-            "header":
-            {
-                "checksum": "",
-                "type": ConnectionMessage.TYPE,
-                "nsequence": "",
-                "size": "" #(cabeçalho + payload)
-            },
+            "header": Handler.get_header(ConnectionMessage.TYPE),
             "payload":
             {
                 "username": username,
@@ -64,6 +76,16 @@ class ConnectionMessage:
     def get_message(self):
         return self.message
 
+    def set_message(self, data):
+        self.message = data
+
+    def get_type(self):
+        return self.TYPE
+
+    def __str__(self):
+        value = "ConnectionMessage " + str(self.message)
+        return value
+
 
 # mensagem cliente -> servidor (recebeu numero de segmentos) (2)
 class AckClientMessage:
@@ -73,17 +95,21 @@ class AckClientMessage:
     def __init__(self):
         self.message =\
         {
-            "header":
-            {
-                "checksum": "",
-                "type": AckClientMessage.TYPE,
-                "nsequence": "",
-                "size": "" #(cabeçalho + payload)
-            },
+            "header": Handler.get_header(AckClientMessage.TYPE)
         }
 
     def get_message(self):
         return self.message
+
+    def set_message(self, data):
+        self.message = data
+
+    def get_type(self):
+        return self.TYPE
+
+    def __str__(self):
+        value = "AckClientMessage " + str(self.message)
+        return value
 
 
 # mensagens servidor -> cliente com dados (3)
@@ -94,18 +120,22 @@ class DataMessage:
     def __init__(self):
         self.message =\
         {
-            "header":
-                {
-                    "checksum": "",
-                    "type": DataMessage.TYPE,  #no caso do ultimo segmento vai um FIN
-                    "nsequence": "",
-                    "size": ""  # (cabeçalho + payload)
-                },
+            "header": Handler.get_header(DataMessage.TYPE),
             "payload": "data"
         }
 
     def get_message(self):
         return self.message
+
+    def set_message(self, data):
+        self.message = data
+
+    def get_type(self):
+        return self.TYPE
+
+    def __str__(self):
+        value = "DataMessage " + str(self.message)
+        return value
 
 
 # primeira mensagem servidor -> cliente (4)
@@ -116,21 +146,31 @@ class TotalSegMessage:
     def __init__(self):
         self.message =\
         {
-            "header":
-                {
-                    "checksum": "",
-                    "type": TotalSegMessage.TYPE,
-                    "nsequence": "",
-                    "size": ""  # (cabeçalho + payload)
-                },
+            "header": Handler.get_header(TotalSegMessage.TYPE),
             "payload":
             {
-                "totalSegments": ""
+                "totalSegments": 0
             }
         }
 
+    def set_total_segments(self, total_segments):
+        self.message["payload"]["totalSegments"] = total_segments
+
+    def get_total_segments(self):
+        return self.message["payload"]["totalSegments"]
+
     def get_message(self):
         return self.message
+
+    def set_message(self, data):
+        self.message = data
+
+    def get_type(self):
+        return self.TYPE
+
+    def __str__(self):
+        value = "TotalSegMessage " + str(self.message)
+        return value
 
 
 # mensagem cliente -> servidor (missing) (5)
@@ -141,13 +181,7 @@ class MissingMessage:
     def __init__(self):
         self.message = \
             {
-                "header":
-                    {
-                        "checksum": "",
-                        "type": MissingMessage.TYPE,
-                        "nsequence": "",
-                        "size": ""  # (cabeçalho + payload)
-                    },
+                "header": Handler.get_header(MissingMessage.TYPE),
                 "payload":
                     {
                         "missing": []
@@ -156,6 +190,16 @@ class MissingMessage:
 
     def get_message(self):
         return self.message
+
+    def set_message(self, data):
+        self.message = data
+
+    def get_type(self):
+        return self.TYPE
+
+    def __str__(self):
+        value = "MissingMessage " + str(self.message)
+        return value
 
 
 # utima mensagem cliente -> servidor (6)
@@ -166,14 +210,18 @@ class FinMessage:
     def __init__(self):
         self.message =\
         {
-            "header":
-            {
-                "checksum": "",
-                "type": FinMessage.TYPE,
-                "nsequence": "",
-                "size": "" #(cabeçalho + payload)
-            },
+            "header": Handler.get_header(FinMessage.TYPE)
         }
 
     def get_message(self):
         return self.message
+
+    def set_message(self, data):
+        self.message = data
+
+    def get_type(self):
+        return self.TYPE
+
+    def __str__(self):
+        value = "FinMessage " + str(self.message)
+        return value
