@@ -2,38 +2,36 @@ from socket import *
 
 from transfereCC import *
 
-import json
 
-
-serverPort = 12000
-
-
-def createSynAck():
-    synAck = {'header': header(0,1,1), 'totalSegments': 100, 'content': {}}
-
-    return synAck
+# import nome do import transferCC.nomedafuncao
 
 
 #inicio da conexão adaptar as funções do recvfrom(2048) e do sendto() - estas funcoes podem ter de estar no transfereCC
-def startServer():
+def startServer(port):
 
-    serverSocket = socket(AF_INET, SOCK_DGRAM)
+    socketConnection = socket(AF_INET, SOCK_DGRAM)
+    socketConnection.bind(('', port))
+    connection = createConnectionObject(socketConnection, ('*', port))
 
-    serverSocket.bind(('', serverPort))
+    while True:
+        message, address = recvMessage(connection)
+        if message['header']['type'] == TYPESYN:
+            newConnection = createConnectionObject(socketConnection, address)
+            # Verifica:
+            #   Usuario/Senha
+            #   Ficheiro
+            #   Se alguma coisa estiver errada nao aceita conexao
+            #   e envia um FIN. Caso contratrio prossegue com um
+            #   SIN.
 
-    synAck = createSynAck()
-
-    print(synAck)
-
-    clientMsg = rcvMsgFromClient(serverSocket)
-
-    sendMsgToClient(synAck, clientMsg)
-
-
-    return serverSocket
+            # Guardar a new connection num mapping (i.e. cache)
+            acceptConnection(newConnection)
+            print("Type syn")
+        if message['header']['type'] == TYPENORMAL:
+            print("Type normal")
 
 
 
 
-
-serverSocket = startServer()
+serverPort = 12000
+serverSocket = startServer(serverPort)
