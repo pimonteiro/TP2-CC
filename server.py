@@ -1,5 +1,6 @@
 import message
 import connection
+import os
 
 
 class ServerException(Exception):
@@ -16,6 +17,7 @@ class ConnectionStatus:
             conn = connection.Connection(destIp=dest_ip, destPort=dest_port)
             self.connections[address] = {
                 "connection": conn,
+                "filename": "",
                 "total_segments": 0,
                 "num_transmitted": 0,
                 "transmitted": {}
@@ -23,6 +25,9 @@ class ConnectionStatus:
 
     def get_connection(self, address):
         return self.connections[address]
+
+    def remove_connection(self, address):
+        del self.connections[address]
 
 
 class Server:
@@ -33,6 +38,7 @@ class Server:
     def run(self):
         while True:
             (msg, address) = self.conn.receive()
+            print("Cliente: ", address, " recebida: ", msg)
             self.status.add_connection(address)
 
             conn = self.status.get_connection(address)
@@ -61,18 +67,50 @@ class Server:
             return
 
         # VERIFICAR CREDENCIAIS DO CLIENTE
-        # VERIFICAR FICHEIRO
+
+        if not os.path.exists(msg.get_filename()):
+            msg = message.FinMessage()
+            conn["connection"].send(msg)
+            conn["connection"].close()
+            self.status.remove_connection(address)
+            return
+
+        size = os.path.getsize(msg.get_filename())
+
+        conn["filename"] = msg.get_filename()
+        total_segments = (int) (size / message.Handler.MAX_PAYLOAD_SIZE)
+        inc = 0
+        if (message.Handler.MAX_PAYLOAD_SIZE * total_segments) != size:
+            inc = 1
+        total_segments = total_segments + inc
+        conn["total_segments"] = total_segments
+
+        conn["connection"].set_status(connection.Connection.CONNECTING)
 
         msg = message.TotalSegMessage()
-        msg.set_total_segments(0)
-
+        msg.set_total_segments(total_segments)
         conn["connection"].send(msg)
 
+        print("Cliente: ", address ,"enviada: ", msg)
 
     def process_ack(self, msg, address):
         conn = self.status.get_connection(address)
         if conn["connection"].get_status() != connection.Connection.CONNECTING:
             return
+
+        conn["connection"].set_status(connection.Connection.CONNECTED)
+
+        with open(conn["filename"], 'r') as f:
+            while conn["num_transmitted"] < conn["total_segments"]:
+                bytes = f.read(message.Handler.MAX_PAYLOAD_SIZE)
+                size = len(bytes)
+                data_msg = message.DataMessage(bytes, size, conn["num_transmitted"])
+                conn["connection"].send(data_msg)
+
+                print("Client: ", address, " enviado: ", data_msg)
+
+                conn["transmitted"][conn["num_transmitted"]] = data_msg
+                conn["num_transmitted"] += 1
 
     def process_missing(self, msg, address):
         pass

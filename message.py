@@ -12,6 +12,7 @@ class Handler:
         "size": 0
     }
 
+    MAX_PAYLOAD_SIZE = 1024
 
     @staticmethod
     def get_header(type):
@@ -32,7 +33,10 @@ class Handler:
             msg.set_message(data)
             return msg
         elif data['header']['type'] == DataMessage.TYPE:
-            msg = DataMessage()
+            size = data["header"]["size"]
+            sequence = data["header"]["nsequence"]
+            payload = data["payload"]
+            msg = DataMessage(payload, size, sequence)
             msg.set_message(data)
             return msg
         elif data['header']['type'] == TotalSegMessage.TYPE:
@@ -79,6 +83,18 @@ class ConnectionMessage:
     def set_message(self, data):
         self.message = data
 
+    def get_username(self):
+        return self.message["payload"]["username"]
+
+    def get_password(self):
+        return self.message["payload"]["password"]
+
+    def get_action(self):
+        return self.message["payload"]["action"]
+
+    def get_filename(self):
+        return self.message["payload"]["filename"]
+
     def get_type(self):
         return self.TYPE
 
@@ -117,12 +133,14 @@ class DataMessage:
 
     TYPE = 3
 
-    def __init__(self):
+    def __init__(self, payload, size, sequence):
         self.message =\
         {
             "header": Handler.get_header(DataMessage.TYPE),
-            "payload": "data"
+            "payload": payload
         }
+        self.message["header"]["size"] = size
+        self.message["header"]["nsequence"] = sequence
 
     def get_message(self):
         return self.message

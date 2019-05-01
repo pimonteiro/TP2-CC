@@ -20,10 +20,11 @@ class Client:
         self.conn.set_status(connection.Connection.CONNECTING)
 
         self.conn.send(msg)
+        print("Enviada: ", msg)
 
         #TODO: Cliente consegue ser unicamente identificado
         (msg, _) = self.conn.receive()
-        print(msg)
+        print("Recebida: ", msg)
 
         if msg.get_type() not in (message.TotalSegMessage.TYPE, message.FinMessage.TYPE):
             self.conn.close()
@@ -39,6 +40,7 @@ class Client:
             self.total_segments = msg.get_message()["payload"]["totalSegments"]
             msg = message.AckClientMessage()
             self.conn.send(msg)
+            print("Enviada: ", msg)
 
         self.conn.set_status(connection.Connection.CONNECTED)
             
@@ -47,7 +49,7 @@ class Client:
 
         while self.num_received < self.total_segments:
             (msg, _) = self.conn.receive()
-            print(msg)
+            print("Recebida: ", msg)
 
             if msg.get_type() not in (message.DataMessage.TYPE, message.FinMessage.TYPE):
                 self.conn.close()
@@ -74,7 +76,7 @@ class Client:
 
 def main():
     client = Client("127.0.0.1", 12000)
-    client.connect(username="vanessa", password="123", action="get", filename="ficheiro")
+    client.connect(username="vanessa", password="123", action="get", filename="porra")
     client.receive_data()
 
 
