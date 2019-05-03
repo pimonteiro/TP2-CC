@@ -61,12 +61,15 @@ class Server:
             if msg.get_type() == message.FinMessage.TYPE:
                 self.process_fin(msg, address)
 
+
+#TODO: tem de ser criado outra classe ou várias classes que processa as mensagens
+
     def process_connect(self, msg, address):
         conn = self.status.get_connection(address)
         if conn["connection"].get_status() != connection.Connection.DISCONNECTED:
             return
 
-        # VERIFICAR CREDENCIAIS DO CLIENTE
+        # TODO: VERIFICAR CREDENCIAIS DO CLIENTE
 
         if not os.path.exists(msg.get_filename()):
             msg = message.FinMessage()

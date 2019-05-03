@@ -12,7 +12,7 @@ class Handler:
         "size": 0
     }
 
-    MAX_PAYLOAD_SIZE = 1024
+    MAX_PAYLOAD_SIZE = 512
 
     @staticmethod
     def get_header(type):
@@ -23,6 +23,8 @@ class Handler:
     @staticmethod
     def deserialize(msgbytes):
         data = json.loads(msgbytes.decode())
+        # TODO: alterar a forma de serialização - mudar de json para struct -
+        #  TODO: struct  -  consultar - http://www.bitforestinfo.com/2017/12/code-to-create-tcp-packet-header-with-python-socket-module.html
         # TODO: VALIDAR CHECKSUM -- SE CHECKSUM ERRADO --- IGNORAR MESSAGEM E RAISE EXCEPTION
         if data['header']['type'] == ConnectionMessage.TYPE:
             msg = ConnectionMessage()
@@ -58,6 +60,9 @@ class Handler:
         msgbytes = json.dumps(msg.get_message()).encode()
         return msgbytes
 
+
+#TODO: herdam da classe mãe; colocar os atributos como privados;
+#TODO: definir os métodos necessários para não aceder diretamente aos atributos
 
 # primeira mensagem cliente -> servidor (1)
 class ConnectionMessage:
@@ -202,7 +207,7 @@ class MissingMessage:
                 "header": Handler.get_header(MissingMessage.TYPE),
                 "payload":
                     {
-                        "missing": []
+                        "missing": {}
                     }
             }
 
@@ -214,6 +219,10 @@ class MissingMessage:
 
     def get_type(self):
         return self.TYPE
+
+    def set_missing(self, lista):
+        self.message["payload"]["missing"] = lista
+
 
     def __str__(self):
         value = "MissingMessage " + str(self.message)

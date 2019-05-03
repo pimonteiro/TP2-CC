@@ -30,6 +30,8 @@ class Client:
             self.conn.close()
             raise ClientException("Error ao estabelecer conexão")
 
+
+        ##ACHO que está a mais
         #quando recebe um fin o cliente manda fin e fecha o socket
         elif msg.get_type() == message.FinMessage.TYPE:
             self.conn.close()
@@ -55,16 +57,26 @@ class Client:
                 self.conn.close()
                 raise ClientException("Error ao receber dados")
 
-            self.num_received += 1
 
             sequence = msg.get_message()["header"]["nsequence"]
             if self.received.get(sequence) is None:
+                self.num_received += 1
                 self.received[sequence] = msg.get_message()["payload"]
 
             if msg.get_type() == message.FinMessage.TYPE:
-                msg = message.FinMessage()
-                self.conn.send(msg)
-                self.conn.close()
+                missed = self.get_missing()
+                if missed.__len__() == 0:
+                    msg = message.FinMessage()
+                    self.conn.send(msg)
+                    self.conn.close()
+                    self.conn.set_status(connection.Connection.CLOSE)
+                else:
+                    msg = message.MissingMessage()
+                    msg.set_missing(missed)
+                    self.conn.send(msg)
+                    self.conn.set_status(connection.Connection.RECEIVING_MISSING)
+
+
 
             # TODO: TRATAR DE MISSING MESSAGES
 
