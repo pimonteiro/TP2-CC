@@ -12,11 +12,13 @@ class requestHandler(threading.Thread):
     def __init__(self, skt, client_address):
         threading.Thread.__init__(self)
 
-        self.socket = skt[1]                    #connection socket
-        self.address = client_address           #client address
-        self.op = skt[0][25:].decode('uft-8')   #operation data
-        self.data = {}                          #current data sent from client
-        self.pieces = []                        #file's chunks
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)      #connection socket
+        self.socket.bind(('',0))                                            #bind a free port
+        self.port = self.socket.getsockname()[1]                            #socket port
+        self.client_address = client_address                                #client address
+        self.op = json.loads(skt[0][25:].decode('uft-8'))                   #operation data
+        self.data = {}                                                      #current data sent from client
+        self.pieces = []                                                    #file's chunks
         self.flag = True
 
         self.total_segments = -1
@@ -24,7 +26,7 @@ class requestHandler(threading.Thread):
         self.nsequence = -1
         self.type = -1
         self.size = -1
-        self.getHeaderValues(skt)
+        self.getHeaderValues(skt[0][:25])
 
     ACK = 2     #Acknowledge
     DAT = 3     #Data
@@ -37,7 +39,7 @@ class requestHandler(threading.Thread):
     HEADER_SIZE = 58
     
 
-    def run(self):
+    def run(self):    
         if self.auth():
 
             if self.op["method"] == "GET":
@@ -76,7 +78,7 @@ class requestHandler(threading.Thread):
         #verify if file exists
         if not os.path.exists(filename):
             msg = message.makeErrorMessage()
-            self.socket.sendto(msg, self.address)
+            self.socket.sendto(msg, self.client_address)
             self.socket.close()
             return
 
@@ -85,8 +87,8 @@ class requestHandler(threading.Thread):
         self.total_segments = self.chunkFile(filename)
 
         #send total segments
-        msg = message.makeTotalSegMessage(self.total_segments)
-        self.socket.sendto(msg, self.address)
+        msg = message.makeTotalSegMessage(self.total_segments, self.port)
+        self.socket.sendto(msg, self.client_address)
         
         #wait for the answer and process it
         self.process_answer()
@@ -127,7 +129,7 @@ class requestHandler(threading.Thread):
 
         msg = message.makeFinMessage(checksum, size, self.total_segments)
 
-        self.socket.sendto((msg + chunk), self.address)
+        self.socket.sendto((msg + chunk), self.client_address)
 
 
     def sendChunk(self, segment):
@@ -135,9 +137,9 @@ class requestHandler(threading.Thread):
         size = sys.getsizeof(chunk)
         checksum = message.checksum(chunk)
 
-        msg = message.makeFinMessage(checksum, size, segment)
+        msg = message.makeDataMessage(checksum, size, segment)
 
-        self.socket.sendto((msg + chunk), self.address)
+        self.socket.sendto((msg + chunk), self.client_address)
 
 
     def sendAll(self):
@@ -147,9 +149,9 @@ class requestHandler(threading.Thread):
             size = sys.getsizeof(chunk)
             checksum = message.checksum(chunk)
 
-            msg = message.makeDataMessage(checksum, size, n)
+            msg = message.makeMessage(checksum, size, n)
 
-            self.socket.sendto((msg + chunk), self.address)
+            self.socket.sendto((msg + chunk), self.client_address)
 
         self.sendLast()
 
@@ -215,7 +217,7 @@ class requestHandler(threading.Thread):
 #            if self.data["action"] == "GET":
 #                # função de mandar dividir e meter os pedaços no array pieces
 #
-#                #self.pieces = transfereCC.sendFirstMsgToClient(self.socket,self.address,text)
+#                #self.pieces = transfereCC.sendFirstMsgToClient(self.socket,self.client_address,text)
 #                # Verificar se recebeu
 #                try:
 #                    text = transfereCC.recvPacket(self.socket)
@@ -227,7 +229,7 @@ class requestHandler(threading.Thread):
 #                missing = self.pieces
 #                flag = False
 #                while(retry < 3 or flag == True):
-#                    transfereCC.sendPacketsToClient(self.socket, self.address, missing)
+#                    transfereCC.sendPacketsToClient(self.socket, self.client_address, missing)
 #                    # Verifica se recebeu todos
 #                    try:
 #                        code, text = transfereCC.recvMessage(self.socket)
@@ -243,10 +245,10 @@ class requestHandler(threading.Thread):
 #                #fazer um pedido de get para o endereço do client mas na porta que o servidor é executado.
 #                pass
 #
-#            self.socket.sendto(("from thread: ola\n").encode(),self.address)
+#            self.socket.sendto(("from thread: ola\n").encode(),self.client_address)
 #            self.socket.close()
 #        
 #        else:
-#            self.socket.sendto(("from thread: autenticacao invalida").encode(),self.address)
+#            self.socket.sendto(("from thread: autenticacao invalida").encode(),self.client_address)
 
     #autenticacao do cliente para depois mandar os arquivos
