@@ -4,6 +4,7 @@ import copy
 
 # TODO: TRANSFORMAR ESSA CLASSE EM CLASSE MAE
 class Handler:
+    def __init__(self,payload,header,)
 
     HEADER = {
         "checksum": "",
@@ -252,3 +253,6 @@ class FinMessage:
     def __str__(self):
         value = "FinMessage " + str(self.message)
         return value
+
+
+ def makeDataMessage(nsequence, size, checksum, )

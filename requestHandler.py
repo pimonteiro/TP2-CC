@@ -3,47 +3,206 @@ import socket
 import json
 import sys
 import base64
+import os
+import message
+from struct import pack
+from struct import unpack
 
 class requestHandler(threading.Thread):
-    def __init__(self, socket, client_address, message):
+    def __init__(self, skt, client_address):
         threading.Thread.__init__(self)
-        self.socket = socket
-        self.address = client_address
-        self.data = json.loads(message)["payload"]
-        self.header = json.loads(message)["header"]
-        self.pieces = []
-        self.attemp = 0
-        self.on = True
-        
+
+        self.socket = skt[1]                    #connection socket
+        self.address = client_address           #client address
+        self.op = skt[0][25:].decode('uft-8')   #operation data
+        self.data = {}                          #current data sent from client
+        self.pieces = []                        #file's chunks
+        self.flag = True
+
+        self.total_segments = -1
+        self.checksum = -1
+        self.nsequence = -1
+        self.type = -1
+        self.size = -1
+        self.getHeaderValues(skt)
+
+    ACK = 2     #Acknowledge
+    DAT = 3     #Data
+    TSG = 4     #Total Segments
+    MMS = 5     #Missing
+    FIN = 6     #FIN
+    ATE = 7     #Authentication error
+    FNF = 8     #File Not Found
+
+    HEADER_SIZE = 58
+    
 
     def run(self):
-        file = self.data["filename"]
+        if self.auth():
 
-        total_segments = self.chunkFile(file)
-        print("tamanho do array = " + str(total_segments))
+            if self.op["method"] == "GET":
+                self.getFile()
 
-        send = {}
-        payload = {}
-        payload["total_segments"] = total_segments
-        send["payload"] = payload
-        self.socket.sendto(json.dumps(send).encode(), self.address)
-
-        sys.exit()
+            elif self.op["method"] == "PUT":
+                self.putFile()
 
 
-        send = {}
-        header = {}
-        send["header"] = header
+    def getHeaderValues(self, msg):
+        self.checksum, self.size, self.nsequence, self.type = unpack('LHLc', msg)
 
-        for sequence in range(total_segments):
-            header["nsequence"] = sequence
-            send["payload"] = base64.b64encode(self.pieces[sequence])
+    
+    def updateData(self):
+        tmp = self.socket.recv(self.size).decode('utf-8')
 
-            self.socket.sendto(json.dumps(send).encode(), self.address)
+        self.data = json.loads(tmp)
 
-        print("mandou tudo")
 
+    def chunkFile(self, filename):
+        with open("/tmp/" + str(filename), "rb") as file:
+            chunk = True
+
+            while chunk:
+                chunk = file.read(512)
+                self.pieces.append(bytes(chunk))
+
+            file.close()
+
+            return len(self.pieces)
+
+
+    def getFile(self):
+        filename = self.op["filename"]
+
+        #verify if file exists
+        if not os.path.exists(filename):
+            msg = message.makeErrorMessage()
+            self.socket.sendto(msg, self.address)
+            self.socket.close()
+            return
+
+        #split the file into chunks and store it into a list
+        #return the total of segments
+        self.total_segments = self.chunkFile(filename)
+
+        #send total segments
+        msg = message.makeTotalSegMessage(self.total_segments)
+        self.socket.sendto(msg, self.address)
+        
+        #wait for the answer and process it
+        self.process_answer()
+
+        #process the answers untill receive a fin
+        while(self.flag):
+            self.process_answer()
+
+        #close the scket
         self.socket.close()
+
+        
+            
+
+
+
+
+    def putFile(self):
+        pass
+
+
+
+    def auth(self):
+        if (self.op["username"] == "teste" and self.op["password"] == "123"):
+            return True
+        
+        else:
+            return False
+
+        
+
+        
+
+    def sendLast(self):
+        chunk = self.pieces[self.total_segments]
+        size = sys.getsizeof(chunk)
+        checksum = message.checksum(chunk)
+
+        msg = message.makeFinMessage(checksum, size, self.total_segments)
+
+        self.socket.sendto((msg + chunk), self.address)
+
+
+    def sendChunk(self, segment):
+        chunk = self.pieces[segment]
+        size = sys.getsizeof(chunk)
+        checksum = message.checksum(chunk)
+
+        msg = message.makeFinMessage(checksum, size, segment)
+
+        self.socket.sendto((msg + chunk), self.address)
+
+
+    def sendAll(self):
+        for n in range(self.total_segments - 1):
+            chunk = self.pieces[n]
+
+            size = sys.getsizeof(chunk)
+            checksum = message.checksum(chunk)
+
+            msg = message.makeDataMessage(checksum, size, n)
+
+            self.socket.sendto((msg + chunk), self.address)
+
+        self.sendLast()
+
+
+    def waitAnswer(self):
+        retry = 0
+        self.socket.settimeout(0.3)
+
+        while(retry < 3):
+            try:
+                msg = self.socket.recv(HEADER_SIZE)
+                self.getHeaderValues(msg)
+                return
+            
+            except:
+                retry += 1
+
+        raise Exception
+
+
+    def process_answer(self):
+        self.waitAnswer()
+        #if self.type == message.ConnectionMessage.TYPE:
+        #    self.process_connect(msg, address)
+
+        if self.type == message.AckClientMessage.TYPE:
+            self.process_ack()
+
+        #if self.type == message.DataMessage.TYPE:
+        #    self.process_data(msg, address)
+
+        #if self.type == message.TotalSegMessage.TYPE:
+        #    self.process_totalseg(msg, address)
+
+        if self.type == message.MissingMessage.TYPE:
+            self.process_missing()
+
+        elif self.type == message.FinMessage.TYPE:
+            self.flag = False
+
+
+    def process_missing(self):
+        self.updateData()
+        missing = self.data["data"]
+
+        for n in missing:
+            self.sendChunk(n)
+
+    
+    def process_ack(self):
+        #send all chunks of the file
+        self.sendAll()
+
 
 
 
@@ -91,22 +250,3 @@ class requestHandler(threading.Thread):
 #            self.socket.sendto(("from thread: autenticacao invalida").encode(),self.address)
 
     #autenticacao do cliente para depois mandar os arquivos
-
-    def auth(self):
-        if (self.data["username"] == "teste" and self.data["password"] == "123"):
-            return True
-        
-        else:
-            return False
-
-    def chunkFile(self, filename):
-        with open("/tmp/" + str(filename), "rb") as file:
-            chunk = True
-
-            while chunk:
-                chunk = file.read(250)
-                self.pieces.append(bytes(chunk))
-
-            file.close()
-
-            return len(self.pieces)
