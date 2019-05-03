@@ -78,7 +78,7 @@ class Message:
             "action": action,
             "filename": filename
         }
-        che = 0 # TODO Funcao de calcular checksum
+        che = Message.calculate_checksum(json.dumps(data))
         self.header = Header(che, Message.TYPE_SYN, 0, data.__sizeof__())
         self.data = data
 
@@ -89,6 +89,22 @@ class Message:
         self.data = data
 
     # mensagem cliente -> servidor (missing) (5)
-    def makeMissing_TotalSegMessage(self, miss):
-        che = 0
-        self.header = Header(che, Message.TYPE_MMS, 0, miss.size())
+    def makeMissingMessage(self, miss):
+        data = {
+            'data': miss
+        }
+        che = Message.calculate_checksum(json.dumps(data))
+        self.header = Header(che, Message.TYPE_MMS, 0, data.size())
+
+    def makeTotalSegMessage(self, total, port):
+        data = {
+            "data": total,
+            "port": port
+        }
+        che = Message.calculate_checksum(json.dumps(data))
+        self.header = Header(che, Message.TYPE_TSG, 0, data.__sizeof__())
+
+    def calculate_checksum(msg):
+        assert isinstance(msg, str)
+        ordinalSum = sum(ord(x) for x in msg)
+        return ordinalSum

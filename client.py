@@ -40,9 +40,10 @@ class Client:
 
         else:
             assert msg.getType() == Message.TYPE_TSG
-            self.total_segments = int(msg.getData())
+            port = msg.getData()['port']
+            self.total_segments = msg.getData()['data']     # TODO verificar por causa dos json
             msg = Message()
-            msg.makeMessage("",Message.TYPE_ACK)
+            msg.makeMessage("", Message.TYPE_ACK)
             self.conn.send(msg)
             print("Enviada: ", msg)
 
@@ -74,12 +75,10 @@ class Client:
                     self.conn.set_status(Connection.CLOSED)
                 else:
                     msg = Message()
-                    msg.makeMissing_TotalSegMessage(missed)
+                    msg.makeMissingMessage(missed)
                     self.conn.send(msg)
                     self.conn.set_status(Connection.RECEIVING_MISSING)
 
-
-            # TODO: TRATAR DE MISSING MESSAGES
 
     def get_missing(self):
         received = set(self.received.keys())
