@@ -1,4 +1,4 @@
-import message
+from message import Message
 import json
 
 from socket import *
@@ -58,13 +58,14 @@ class Connection:
         self.status = Connection.CLOSED
 
     def send(self, msg):
-        msgbytes = message.Handler.serialize(msg)
+        msgbytes = msg.classToBinary()
         assert len(msgbytes) < Connection.MAX_MESSAGE_SIZE
         self.__socket.sendto(msgbytes, (self.destIp, self.destPort))
 
     def receive(self):
         msgbytes, address = self.__socket.recvfrom(Connection.MAX_MESSAGE_SIZE)
-        msg = message.Handler.deserialize(msgbytes)
+        msg = Message()
+        msg.binaryToClass(msgbytes)
 
         return msg, address
 

@@ -1,5 +1,5 @@
-import message
-import connection
+from message import Message
+from connection import Connection
 
 
 class ClientException(Exception):
@@ -8,16 +8,17 @@ class ClientException(Exception):
 
 class Client:
     def __init__(self, destIp, destPort):
-        self.conn = connection.Connection(destIp=destIp, destPort=destPort)
+        self.conn = Connection(destIp=destIp, destPort=destPort)
         self.total_segments = 0
         self.num_received = 0
         self.received = {}
 
     # Função que estabelece os requisitos que o cliente envia ao servidor para estabelecer a conexão
     def connect(self, username, password, action, filename):
-        msg = message.ConnectionMessage(username=username, password=password, action=action, filename=filename)
+        msg = Message()
+        msg.makeConnectionMessage(username=username, password=password, action=action, filename=filename)
 
-        self.conn.set_status(connection.Connection.CONNECTING)
+        self.conn.set_status(Connection.CONNECTING)
 
         self.conn.send(msg)
         print("Enviada: ", msg)
@@ -26,56 +27,56 @@ class Client:
         (msg, _) = self.conn.receive()
         print("Recebida: ", msg)
 
-        if msg.get_type() not in (message.TotalSegMessage.TYPE, message.FinMessage.TYPE):
+        if msg.getType() not in (Message.TYPE_TSG, Message.TYPE_FIN):
             self.conn.close()
             raise ClientException("Error ao estabelecer conexão")
 
 
         ##ACHO que está a mais
         #quando recebe um fin o cliente manda fin e fecha o socket
-        elif msg.get_type() == message.FinMessage.TYPE:
+        elif msg.Message.TYPE_FIN() == Message.TYPE_FIN:
             self.conn.close()
             raise ClientException("Error ao estabelecer conexão")
 
         else:
-            assert msg.get_type() == message.TotalSegMessage.TYPE
-            self.total_segments = msg.get_message()["payload"]["totalSegments"]
-            msg = message.AckClientMessage()
+            assert msg.getType() == Message.TYPE_TSG
+            self.total_segments = int(msg.getData())
+            msg = Message()
+            msg.makeMessage("",Message.TYPE_ACK)
             self.conn.send(msg)
             print("Enviada: ", msg)
 
-        self.conn.set_status(connection.Connection.CONNECTED)
+        self.conn.set_status(Connection.CONNECTED)
             
     def receive_data(self):
-        self.conn.set_status(connection.Connection.RECEIVING_NORMAL)
+        self.conn.set_status(Connection.RECEIVING_NORMAL)
 
         while self.num_received < self.total_segments:
             (msg, _) = self.conn.receive()
             print("Recebida: ", msg)
 
-            if msg.get_type() not in (message.DataMessage.TYPE, message.FinMessage.TYPE):
+            if msg.getType() not in (Message.TYPE_DAT, Message.TYPE_FIN):
                 self.conn.close()
                 raise ClientException("Error ao receber dados")
 
-
-            sequence = msg.get_message()["header"]["nsequence"]
+            sequence = msg.getSequence()
             if self.received.get(sequence) is None:
                 self.num_received += 1
-                self.received[sequence] = msg.get_message()["payload"]
+                self.received[sequence] = msg.getData()
 
-            if msg.get_type() == message.FinMessage.TYPE:
+            if msg.getType() == Message.TYPE_FIN:
                 missed = self.get_missing()
                 if missed.__len__() == 0:
-                    msg = message.FinMessage()
+                    msg = Message()
+                    msg.makeMessage("",Message.TYPE_FIN)
                     self.conn.send(msg)
                     self.conn.close()
-                    self.conn.set_status(connection.Connection.CLOSE)
+                    self.conn.set_status(Connection.CLOSED)
                 else:
-                    msg = message.MissingMessage()
-                    msg.set_missing(missed)
+                    msg = Message()
+                    msg.makeMissing_TotalSegMessage(missed)
                     self.conn.send(msg)
-                    self.conn.set_status(connection.Connection.RECEIVING_MISSING)
-
+                    self.conn.set_status(Connection.RECEIVING_MISSING)
 
 
             # TODO: TRATAR DE MISSING MESSAGES

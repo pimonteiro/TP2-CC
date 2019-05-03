@@ -12,6 +12,12 @@ class Header:
     def getType(self):
         return self.type
 
+    def getSize(self):
+        return self.size
+
+    def getSequence(self):
+        return self.nsequence
+
     def classToBinary(self):
         head = struct.pack('LHLc',self.checksum,self.size,self.nsequence,self.type)
         return head
@@ -40,20 +46,31 @@ class Message:
     TYPE_FNF = 8
 
     def __init__(self):
-        self.header = ""
+        self.header = Header(0,0,0,0)
         self.data = ""
+
+    def getType(self):
+        return self.header.getType()
+
+    def getSequence(self):
+        return self.header.getSequence()
+
+    def getData(self):
+        return self.data
 
     def classToBinary(self):
         head = self.header.classToBinary()
-        if self.header.getType() == Message.TYPE_ACK || self.header.getType() == Message.TYPE_MMS:
+        if self.header.getType() == Message.TYPE_ACK or self.header.getType() == Message.TYPE_MMS:
             data = json.dumps(self.data).encode()
         else:
             data = self.data.encode()
         return head + data
 
+    def binaryToClass(self, mbytes):
+        self.header.binaryToClass(mbytes[:Message.HEADER_LENGTH])
+        self.data = struct.unpack("utf-8", mbytes[Message.HEADER_LENGTH:Message.HEADER_SIZE])
 
     # primeira mensagem cliente -> servidor (1)
-    @staticmethod
     def makeConnectionMessage(self, username, password, action, filename):
         data = {
             "username": username,
@@ -68,7 +85,7 @@ class Message:
     # mensagem cliente -> servidor (recebeu numero de segmentos) (2)
     def makeMessage(self, data, type):
         che = 0 # TODO Funcao de calcular checksum
-        self.header = Header(che, type, 0, data.size())
+        self.header = Header(che, type, 0, data.__sizeof__())
         self.data = data
 
     # mensagem cliente -> servidor (missing) (5)
