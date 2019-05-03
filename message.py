@@ -1,5 +1,6 @@
 import json
 import struct
+import sys
 
 
 class Header:
@@ -79,13 +80,13 @@ class Message:
             "filename": filename
         }
         che = Message.calculate_checksum(json.dumps(data))
-        self.header = Header(che, Message.TYPE_SYN, 0, data.__sizeof__())
+        self.header = Header(che, Message.TYPE_SYN, 0, sys.getsizeof(data))
         self.data = data
 
     # mensagem cliente -> servidor (recebeu numero de segmentos) (2)
-    def makeMessage(self, data, type):
-        che = 0 # TODO Funcao de calcular checksum
-        self.header = Header(che, type, 0, data.__sizeof__())
+    def makeMessage(self, data, type, nseq):
+        che = Message.calculate_checksum(data)
+        self.header = Header(che, type, nseq, sys.getsizeof(data))
         self.data = data
 
     # mensagem cliente -> servidor (missing) (5)
@@ -94,7 +95,7 @@ class Message:
             'data': miss
         }
         che = Message.calculate_checksum(json.dumps(data))
-        self.header = Header(che, Message.TYPE_MMS, 0, data.size())
+        self.header = Header(che, Message.TYPE_MMS, 0, sys.getsizeof(data))
 
     def makeTotalSegMessage(self, total, port):
         data = {
@@ -102,7 +103,7 @@ class Message:
             "port": port
         }
         che = Message.calculate_checksum(json.dumps(data))
-        self.header = Header(che, Message.TYPE_TSG, 0, data.__sizeof__())
+        self.header = Header(che, Message.TYPE_TSG, 0, sys.getsizeof(data))
 
     def calculate_checksum(msg):
         assert isinstance(msg, str)
