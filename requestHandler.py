@@ -2,9 +2,8 @@ import threading
 import socket
 import json
 import sys
-import base64
 import os
-import message
+from message import *
 from struct import pack
 from struct import unpack
 
@@ -13,44 +12,36 @@ class requestHandler(threading.Thread):
         threading.Thread.__init__(self)
 
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)      #connection socket
-        self.socket.bind(('',0))                                            #bind a free port
+        self.socket.bind(('127.0.0.1',0))                                   #bind a free port
         self.port = self.socket.getsockname()[1]                            #socket port
         self.client_address = client_address                                #client address
-        self.op = json.loads(skt[0][25:].decode('uft-8'))                   #operation data
+        self.op = json.loads(skt[0][25:].decode('utf-8'))                   #operation data
         self.data = {}                                                      #current data sent from client
         self.pieces = []                                                    #file's chunks
+        self.msg = Message()                                                #message to be send
         self.flag = True
 
-        self.total_segments = -1
-        self.checksum = -1
-        self.nsequence = -1
-        self.type = -1
-        self.size = -1
+        self.total_segments = 0
+        self.checksum = 0
+        self.nsequence = 0
+        self.type = 0
+        self.size = 0
         self.getHeaderValues(skt[0][:25])
 
-    ACK = 2     #Acknowledge
-    DAT = 3     #Data
-    TSG = 4     #Total Segments
-    MMS = 5     #Missing
-    FIN = 6     #FIN
-    ATE = 7     #Authentication error
-    FNF = 8     #File Not Found
-
-    HEADER_SIZE = 58
-    
 
     def run(self):    
         if self.auth():
 
-            if self.op["method"] == "GET":
+            if self.op["action"] == "GET":
                 self.getFile()
 
-            elif self.op["method"] == "PUT":
+            elif self.op["action"] == "PUT":
                 self.putFile()
 
 
     def getHeaderValues(self, msg):
         self.checksum, self.size, self.nsequence, self.type = unpack('LHLc', msg)
+        self.type = self.type.decode('utf-8')
 
     
     def updateData(self):
@@ -72,13 +63,14 @@ class requestHandler(threading.Thread):
             return len(self.pieces)
 
 
+
     def getFile(self):
         filename = self.op["filename"]
 
         #verify if file exists
-        if not os.path.exists(filename):
-            msg = message.makeErrorMessage()
-            self.socket.sendto(msg, self.client_address)
+        if not os.path.exists("/tmp/" + filename):
+            self.msg.makeMessage("", Message.TYPE_FNF, 0)
+            self.socket.sendto(self.msg.classToBinary(), self.client_address)
             self.socket.close()
             return
 
@@ -87,8 +79,8 @@ class requestHandler(threading.Thread):
         self.total_segments = self.chunkFile(filename)
 
         #send total segments
-        msg = message.makeTotalSegMessage(self.total_segments, self.port)
-        self.socket.sendto(msg, self.client_address)
+        self.msg.makeTotalSegMessage(self.total_segments, self.port)
+        self.socket.sendto(self.msg.classToBinary(), self.client_address)
         
         #wait for the answer and process it
         self.process_answer()
@@ -118,55 +110,42 @@ class requestHandler(threading.Thread):
         else:
             return False
 
-        
-
-        
+                
 
     def sendLast(self):
         chunk = self.pieces[self.total_segments]
-        size = sys.getsizeof(chunk)
-        checksum = message.checksum(chunk)
-
-        msg = message.makeFinMessage(checksum, size, self.total_segments)
-
-        self.socket.sendto((msg + chunk), self.client_address)
+        self.msg.makeMessage(chunk, Message.TYPE_FIN, self.total_segments)
+        self.socket.sendto(self.msg.classToBinary(), self.client_address)
 
 
     def sendChunk(self, segment):
         chunk = self.pieces[segment]
-        size = sys.getsizeof(chunk)
-        checksum = message.checksum(chunk)
-
-        msg = message.makeDataMessage(checksum, size, segment)
-
-        self.socket.sendto((msg + chunk), self.client_address)
+        self.msg.makeMessage(chunk, Message.TYPE_DAT, segment)
+        self.socket.sendto(self.msg.classToBinary(), self.client_address)
 
 
     def sendAll(self):
         for n in range(self.total_segments - 1):
             chunk = self.pieces[n]
-
-            size = sys.getsizeof(chunk)
-            checksum = message.checksum(chunk)
-
-            msg = message.makeMessage(checksum, size, n)
-
-            self.socket.sendto((msg + chunk), self.client_address)
+            self.msg.makeMessage(chunk, Message.TYPE_DAT, n)
+            self.socket.sendto(self.msg.classToBinary(), self.client_address)
 
         self.sendLast()
 
 
     def waitAnswer(self):
         retry = 0
-        self.socket.settimeout(0.3)
+        #self.socket.settimeout(10)
 
         while(retry < 3):
             try:
-                msg = self.socket.recv(HEADER_SIZE)
-                self.getHeaderValues(msg)
+                print("aqui: %d", retry)
+                in_msg = self.socket.recv(Message.HEADER_SIZE)
+                self.getHeaderValues(in_msg)
                 return
             
             except:
+                self.socket.sendto(self.msg.classToBinary(), self.client_address)
                 retry += 1
 
         raise Exception
@@ -177,7 +156,7 @@ class requestHandler(threading.Thread):
         #if self.type == message.ConnectionMessage.TYPE:
         #    self.process_connect(msg, address)
 
-        if self.type == message.AckClientMessage.TYPE:
+        if self.type == Message.TYPE_ACK:
             self.process_ack()
 
         #if self.type == message.DataMessage.TYPE:
@@ -186,10 +165,10 @@ class requestHandler(threading.Thread):
         #if self.type == message.TotalSegMessage.TYPE:
         #    self.process_totalseg(msg, address)
 
-        if self.type == message.MissingMessage.TYPE:
+        if self.type == Message.TYPE_MMS:
             self.process_missing()
 
-        elif self.type == message.FinMessage.TYPE:
+        elif self.type == Message.TYPE_FIN:
             self.flag = False
 
 

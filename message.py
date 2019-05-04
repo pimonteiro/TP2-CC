@@ -20,7 +20,7 @@ class Header:
         return self.nsequence
 
     def classToBinary(self):
-        head = struct.pack('LHLc',self.checksum,self.size,self.nsequence,self.type)
+        head = struct.pack('LHLc',self.checksum,self.size,self.nsequence,self.type.encode())
         return head
 
     def binaryToClass(self, head):
@@ -37,14 +37,14 @@ class Message:
     HEADER_SIZE = 58
     HEADER_LENGTH = 25
 
-    TYPE_SYN = 1
-    TYPE_ACK = 2
-    TYPE_DAT = 3
-    TYPE_TSG = 4
-    TYPE_MMS = 5
-    TYPE_FIN = 6
-    TYPE_ATE = 7
-    TYPE_FNF = 8
+    TYPE_SYN = "1"
+    TYPE_ACK = "2"
+    TYPE_DAT = "3"
+    TYPE_TSG = "4"
+    TYPE_MMS = "5"
+    TYPE_FIN = "6"
+    TYPE_ATE = "7"
+    TYPE_FNF = "8"
 
     def __init__(self):
         self.header = Header(0,0,0,0)
@@ -61,10 +61,16 @@ class Message:
 
     def classToBinary(self):
         head = self.header.classToBinary()
-        if self.header.getType() == Message.TYPE_ACK or self.header.getType() == Message.TYPE_MMS:
+        print("size of header: " + str(sys.getsizeof(head)))
+        if self.header.getType() in (Message.TYPE_ACK, Message.TYPE_MMS, Message.TYPE_SYN, Message.TYPE_TSG):
             data = json.dumps(self.data).encode()
+        
+        elif self.header.getType() == Message.TYPE_DAT:
+            data = self.data
+
         else:
             data = self.data.encode()
+
         return head + data
 
     def binaryToClass(self, mbytes):
@@ -96,6 +102,7 @@ class Message:
         }
         che = Message.calculate_checksum(json.dumps(data))
         self.header = Header(che, Message.TYPE_MMS, 0, sys.getsizeof(data))
+        self.data = data
 
     def makeTotalSegMessage(self, total, port):
         data = {
@@ -104,7 +111,9 @@ class Message:
         }
         che = Message.calculate_checksum(json.dumps(data))
         self.header = Header(che, Message.TYPE_TSG, 0, sys.getsizeof(data))
+        self.data = data
 
+    @staticmethod
     def calculate_checksum(msg):
         assert isinstance(msg, str)
         ordinalSum = sum(ord(x) for x in msg)
