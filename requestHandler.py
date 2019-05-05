@@ -45,9 +45,7 @@ class requestHandler(threading.Thread):
 
     
     def updateData(self):
-        tmp = self.socket.recv(self.size).decode('utf-8')
-
-        self.data = json.loads(tmp)
+        self.data = json.loads(self.data.decode('utf-8'))
 
 
     def chunkFile(self, filename):
@@ -55,8 +53,8 @@ class requestHandler(threading.Thread):
             chunk = True
 
             while chunk:
-                chunk = file.read(512)
-                self.pieces.append(bytes(chunk))
+                chunk = file.read(1024)
+                self.pieces.append(chunk)
 
             file.close()
 
@@ -92,11 +90,6 @@ class requestHandler(threading.Thread):
         #close the scket
         self.socket.close()
 
-        
-            
-
-
-
 
     def putFile(self):
         pass
@@ -113,9 +106,11 @@ class requestHandler(threading.Thread):
                 
 
     def sendLast(self):
-        chunk = self.pieces[self.total_segments]
-        self.msg.makeMessage(chunk, Message.TYPE_FIN, self.total_segments)
+        chunk = self.pieces[self.total_segments-1]
+        print("size of chunk:", sys.getsizeof(chunk))
+        self.msg.makeMessage(chunk, Message.TYPE_FIN, self.total_segments-1)
         self.socket.sendto(self.msg.classToBinary(), self.client_address)
+        print("size of message:", sys.getsizeof(self.msg.classToBinary()))
 
 
     def sendChunk(self, segment):
@@ -125,23 +120,23 @@ class requestHandler(threading.Thread):
 
 
     def sendAll(self):
-        for n in range(self.total_segments - 1):
+        for n in range(self.total_segments - 2):
             chunk = self.pieces[n]
             self.msg.makeMessage(chunk, Message.TYPE_DAT, n)
             self.socket.sendto(self.msg.classToBinary(), self.client_address)
-
+            
         self.sendLast()
 
 
     def waitAnswer(self):
         retry = 0
-        #self.socket.settimeout(10)
+        self.socket.settimeout(1)
 
         while(retry < 3):
             try:
-                print("aqui: %d", retry)
-                in_msg = self.socket.recv(Message.HEADER_SIZE)
-                self.getHeaderValues(in_msg)
+                in_msg = self.socket.recv(2048)
+                self.getHeaderValues(in_msg[:25])
+                self.data = in_msg[:25]
                 return
             
             except:
@@ -183,51 +178,3 @@ class requestHandler(threading.Thread):
     def process_ack(self):
         #send all chunks of the file
         self.sendAll()
-
-
-
-
-
-
-
-
-#        if(self.auth()):
-#            
-#            if self.data["action"] == "GET":
-#                # função de mandar dividir e meter os pedaços no array pieces
-#
-#                #self.pieces = transfereCC.sendFirstMsgToClient(self.socket,self.client_address,text)
-#                # Verificar se recebeu
-#                try:
-#                    text = transfereCC.recvPacket(self.socket)
-#                except socket.timeout:
-#                    print("error")
-#
-#                # Enviar ficheiro
-#                retry = 0
-#                missing = self.pieces
-#                flag = False
-#                while(retry < 3 or flag == True):
-#                    transfereCC.sendPacketsToClient(self.socket, self.client_address, missing)
-#                    # Verifica se recebeu todos
-#                    try:
-#                        code, text = transfereCC.recvMessage(self.socket)
-#                        if(code == 3):
-#                            # TODO get from data['ack'] os indexes
-#                            missing = []
-#                        elif(code == 1):
-#                            flag = True
-#                    except socket.timeout:
-#                        print("error")
-#                        retry+=1
-#            else:
-#                #fazer um pedido de get para o endereço do client mas na porta que o servidor é executado.
-#                pass
-#
-#            self.socket.sendto(("from thread: ola\n").encode(),self.client_address)
-#            self.socket.close()
-#        
-#        else:
-#            self.socket.sendto(("from thread: autenticacao invalida").encode(),self.client_address)
-
-    #autenticacao do cliente para depois mandar os arquivos

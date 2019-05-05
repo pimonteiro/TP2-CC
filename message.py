@@ -61,15 +61,14 @@ class Message:
 
     def classToBinary(self):
         head = self.header.classToBinary()
-        print("size of header: " + str(sys.getsizeof(head)))
-        if self.header.getType() in (Message.TYPE_ACK, Message.TYPE_MMS, Message.TYPE_SYN, Message.TYPE_TSG):
+        if self.header.getType() in (Message.TYPE_MMS, Message.TYPE_SYN, Message.TYPE_TSG):
             data = json.dumps(self.data).encode()
         
-        elif self.header.getType() == Message.TYPE_DAT:
-            data = self.data
-
         else:
-            data = self.data.encode()
+            if isinstance(self.data, str):
+                data = self.data.encode()
+            else:
+                data = self.data
 
         return head + data
 
@@ -113,8 +112,18 @@ class Message:
         self.header = Header(che, Message.TYPE_TSG, 0, sys.getsizeof(data))
         self.data = data
 
+    #@staticmethod
+    #def calculate_checksum(msg):
+    #    assert isinstance(msg, str)
+    #    ordinalSum = sum(ord(x) for x in msg)
+    #    return ordinalSum
+
     @staticmethod
     def calculate_checksum(msg):
-        assert isinstance(msg, str)
-        ordinalSum = sum(ord(x) for x in msg)
-        return ordinalSum
+        assert isinstance(msg, (bytes, str))
+        if isinstance(msg, str):
+            ordinalSum = sum(ord(x) for x in msg)
+            return ordinalSum
+        else:
+            ordinalSum = sum(x for x in msg)
+            return ordinalSum

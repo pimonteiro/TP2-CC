@@ -8,7 +8,7 @@ from message import *
 
 HOST, PORT = "127.0.0.1", 9999
 send = Message()
-send.makeConnectionMessage("teste", "123", "GET", "setup_JustNN.exe")
+send.makeConnectionMessage("teste", "123", "GET", "TP1.pdf")
 
 
 # SOCK_DGRAM is the socket type to use for UDP sockets
@@ -17,7 +17,7 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # As you can see, there is no connect() call; UDP has no connections.
 # Instead, data is directly sent to the recipient via sendto().
 sock.sendto(send.classToBinary(), (HOST, PORT))
-received = sock.recv(250)
+received = sock.recv(1024)
 
 checksum, size, nsequence, tipo = unpack('LHLc', received[:25])
 tipo = tipo.decode('utf-8')
@@ -34,22 +34,20 @@ sock.sendto(send.classToBinary(), ("127.0.0.1", destport))
 pieces = []
 
 
-with open("setup_JustNN.exe", "wb") as file:
-    sock.settimeout(3)
+with open("TP1.pdf", "wb") as file:
+    sock.settimeout(0.3)
 
     while True:
         try:
-            received = sock.recv(570)
-            pieces.append(received[25:])
+            received = sock.recv(2048)
+            pieces.append(received)
         
         except:
             print("tamanho do array = " + str(len(pieces)))
-            print("deu timeout")
             for chunk in pieces:
-                file.write(chunk)
+                file.write(chunk[25:])
 
-            print("escreveu tudo")
             file.close()
             sock.close()
-            print("fechou arquivo")
+            print("done")
             sys.exit()
