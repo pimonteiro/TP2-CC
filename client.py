@@ -41,7 +41,7 @@ class Client:
         else:
             assert msg.getType() == Message.TYPE_TSG
             port = msg.getData()['port']
-            self.total_segments = msg.getData()['data']     # TODO verificar por causa dos json
+            self.total_segments = int(msg.getData()['data'])
             msg = Message()
             msg.makeMessage("", Message.TYPE_ACK)
             self.conn.send(msg)
@@ -87,8 +87,8 @@ class Client:
 
 
 def main():
-    client = Client("127.0.0.1", 12000)
-    client.connect(username="vanessa", password="123", action="get", filename="porra")
+    client = Client("127.0.0.1", 9999)
+    client.connect(username="teste", password="123", action="get", filename="TP1.pdf")
     client.receive_data()
 
 
