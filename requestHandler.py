@@ -147,7 +147,7 @@ class requestHandler(threading.Thread):
                 in_msg, _ = self.conn.receive()
                 self.getHeaderValues(in_msg.getHeaderValues())
                 
-                if self.type == Message.TYPE_MMS:
+                if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS):
                     self.data = in_msg.getData()
                 
                 return

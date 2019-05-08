@@ -14,7 +14,6 @@ class Client:
         self.num_received = 0
         self.received = {}
         self.msg = Message()
-        self.flag = True
 
         self.data = -1
         self.checksum = -1
@@ -71,7 +70,7 @@ class Client:
     def receive_data(self, status=Connection.RECEIVING_NORMAL):
         self.conn.set_status(status)
 
-        while self.flag:
+        while self.num_received < self.total_segments:
             self.waitAnswer()
 
             if self.type not in (Message.TYPE_DAT, Message.TYPE_FIN):
@@ -89,12 +88,12 @@ class Client:
                     self.conn.send(self.msg)
                     self.conn.close()
                     self.conn.set_status(Connection.CLOSED)
-                    self.flag = False
+                
                 else:
                     self.msg.makeMissingMessage(missed)
                     self.conn.send(self.msg)
-                    self.receive_data(Connection.RECEIVING_MISSING)
-
+                    self.conn.set_status(Connection.RECEIVING_MISSING)
+                    
 
     def get_missing(self):
         received = set(self.received.keys())
