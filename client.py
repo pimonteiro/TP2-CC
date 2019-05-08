@@ -49,9 +49,10 @@ class Client:
         else:
             assert msg.getType() == Message.TYPE_TSG
             port = msg.getData()['port']
+            self.conn.set_port(port)
             self.total_segments = int(msg.getData()['data'])
             msg = Message()
-            msg.makeMessage("", Message.TYPE_ACK)
+            msg.makeMessage("", Message.TYPE_ACK, -1)
             self.conn.send(msg)
             print("Enviada: ", msg)
 
