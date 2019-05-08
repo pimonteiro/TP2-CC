@@ -25,6 +25,7 @@ class Header:
 
     def binaryToClass(self, head):
         self.checksum, self.size, self.nsequence, self.type = struct.unpack('LHLc', head)
+        self.type = self.type.decode('utf-8')
 
     def setDataMessageHeader(self, ch, nseq, si):
         self.checksum = ch
@@ -48,7 +49,7 @@ class Message:
 
     def __init__(self):
         self.header = Header(0,0,0,0)
-        self.data = ""
+        self.data = ""      
 
     def getType(self):
         return self.header.getType()

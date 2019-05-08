@@ -8,7 +8,7 @@ from message import *
 
 HOST, PORT = "127.0.0.1", 9999
 send = Message()
-send.makeConnectionMessage("teste", "123", "GET", "TP1.pdf")
+send.makeConnectionMessage("teste", "123", "GET", "porra.txt")
 
 
 # SOCK_DGRAM is the socket type to use for UDP sockets
@@ -34,7 +34,7 @@ sock.sendto(send.classToBinary(), ("127.0.0.1", destport))
 pieces = []
 
 
-with open("TP1.pdf", "wb") as file:
+with open("porra.txt", "wb") as file:
     sock.settimeout(0.3)
 
     while True:

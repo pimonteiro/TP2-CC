@@ -42,7 +42,7 @@ class Client:
 
         ##ACHO que está a mais
         #quando recebe um fin o cliente manda fin e fecha o socket
-        elif msg.Message.TYPE_FIN() == Message.TYPE_FIN:
+        if msg.getType() == Message.TYPE_FIN:
             self.conn.close()
             raise ClientException("Error: can't estabilish connection.")
 
@@ -50,9 +50,10 @@ class Client:
             assert msg.getType() == Message.TYPE_TSG
             port = msg.getData()['port']
             self.conn.set_port(port)
+            print(self.conn)
             self.total_segments = int(msg.getData()['data'])
             msg = Message()
-            msg.makeMessage("", Message.TYPE_ACK, -1)
+            msg.makeMessage("", Message.TYPE_ACK, 0)
             self.conn.send(msg)
             print("Enviada: ", msg)
 
@@ -63,7 +64,7 @@ class Client:
 
         while self.num_received < self.total_segments:
             (msg, _) = self.conn.receive()
-            print("Recebida: ", msg)
+            #print("Recebida: ", msg)
 
             if msg.getType() not in (Message.TYPE_DAT, Message.TYPE_FIN):
                 self.conn.close()
@@ -78,7 +79,7 @@ class Client:
                 missed = self.get_missing()
                 if missed.__len__() == 0:
                     msg = Message()
-                    msg.makeMessage("",Message.TYPE_FIN)
+                    msg.makeMessage("",Message.TYPE_FIN, 0)
                     self.conn.send(msg)
                     self.conn.close()
                     self.conn.set_status(Connection.CLOSED)
@@ -91,7 +92,7 @@ class Client:
 
     def get_missing(self):
         received = set(self.received.keys())
-        total = set(range(1, self.total_segments))
+        total = set(range(self.total_segments))
         return total.difference(received)
 
 
@@ -99,6 +100,17 @@ def main():
     client = Client("127.0.0.1", 9999)
     client.connect(username="teste", password="123", action="get", filename="TP1.pdf")
     client.receive_data()
+
+    print(client.received)
+
+    with open("TP1.pdf", "wb") as file:
+        for n in range(client.total_segments):
+            print(client.received[n])
+            file.write(client.received[n])
+
+
+        
+
 
 
 if __name__ == '__main__':

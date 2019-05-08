@@ -133,7 +133,7 @@ class requestHandler(threading.Thread):
 
 
     def sendAll(self):
-        for n in range(self.total_segments - 2):
+        for n in range(self.total_segments - 1):
             chunk = self.pieces[n]
             self.msg.makeMessage(chunk, Message.TYPE_DAT, n)
             self.socket.sendto(self.msg.classToBinary(), self.client_address)
@@ -152,11 +152,11 @@ class requestHandler(threading.Thread):
                 self.data = in_msg[:25]
                 return
             
-            except:
+            except TimeoutError:
                 self.socket.sendto(self.msg.classToBinary(), self.client_address)
                 retry += 1
 
-        raise Exception
+        raise TimeoutError
 
 
     def process_answer(self):
