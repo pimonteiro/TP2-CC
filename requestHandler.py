@@ -32,11 +32,20 @@ class requestHandler(threading.Thread):
     def run(self):    
         if self.auth():
 
-            if self.op["action"] == "GET":
+            if self.op["action"].upper() == "GET":
                 self.getFile()
 
-            elif self.op["action"] == "PUT":
+            elif self.op["action"].upper() == "PUT":
                 self.putFile()
+
+        else:
+            self.sendAuthError()
+            self.socket.close()
+
+
+    def sendAuthError(self):
+        self.msg.makeMessage("", Message.TYPE_ATE, 0)
+        self.socket.sendto(self.msg.classToBinary(), self.client_address)
 
 
     def getHeaderValues(self, msg):
@@ -105,8 +114,12 @@ class requestHandler(threading.Thread):
 
                 
 
-    def sendLast(self):
-        chunk = self.pieces[self.total_segments-1]
+    def sendLast(self, index=-1):
+        if(index == -1):
+            chunk = self.pieces[self.total_segments-1]
+        else:
+            chunk = self.pieces[index]
+
         print("size of chunk:", sys.getsizeof(chunk))
         self.msg.makeMessage(chunk, Message.TYPE_FIN, self.total_segments-1)
         self.socket.sendto(self.msg.classToBinary(), self.client_address)
@@ -170,9 +183,15 @@ class requestHandler(threading.Thread):
     def process_missing(self):
         self.updateData()
         missing = self.data["data"]
+        size = len(missing)
 
-        for n in missing:
+        for i in range(size-1):
+            n = missing[i]
             self.sendChunk(n)
+
+        self.sendLast(size-1)
+
+        
 
     
     def process_ack(self):

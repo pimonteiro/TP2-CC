@@ -95,8 +95,8 @@ class Client:
 
 
 def main():
-    client = Client("127.0.0.1", 12000)
-    client.connect(username="vanessa", password="123", action="get", filename="porra")
+    client = Client("127.0.0.1", 9999)
+    client.connect(username="teste", password="123", action="get", filename="TP1.pdf")
     client.receive_data()
 
 

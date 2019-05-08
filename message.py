@@ -74,7 +74,15 @@ class Message:
 
     def binaryToClass(self, mbytes):
         self.header.binaryToClass(mbytes[:Message.HEADER_LENGTH])
-        self.data = struct.unpack("utf-8", mbytes[Message.HEADER_LENGTH:Message.HEADER_SIZE])
+        
+        if self.header.getType() in (Message.TYPE_MMS, Message.TYPE_SYN, Message.TYPE_TSG):
+            self.data = json.loads(mbytes[Message.HEADER_LENGTH:].decode('utf-8'))
+
+        elif self.header.getType() in (Message.TYPE_ATE, Message.TYPE_FNF):
+            self.data = mbytes[Message.HEADER_LENGTH:].decode('utf-8')
+
+        else:
+            self.data = mbytes[Message.HEADER_LENGTH:]
 
     # primeira mensagem cliente -> servidor (1)
     def makeConnectionMessage(self, username, password, action, filename):
