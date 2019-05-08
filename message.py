@@ -60,7 +60,7 @@ class Message:
         self.data = ""  
 
     def __str__(self):
-        return "HEADER: " + str(self.header) + "\nDATA: " + str(self.data) +"\n"
+        return "HEADER: " + str(self.header) + "\nDATA: " + str(self.data)
 
     def getHeaderValues(self):
         return self.header.getAllFields()    
@@ -76,6 +76,10 @@ class Message:
 
     def classToBinary(self):
         head = self.header.classToBinary()
+        
+        if self.data == "":
+            return head
+
         if self.header.getType() in (Message.TYPE_MMS, Message.TYPE_SYN, Message.TYPE_TSG):
             data = json.dumps(self.data).encode()
         

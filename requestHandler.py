@@ -145,9 +145,11 @@ class requestHandler(threading.Thread):
         while(retry < 3):
             try:
                 in_msg, _ = self.conn.receive()
-                print(in_msg)
                 self.getHeaderValues(in_msg.getHeaderValues())
-                self.data = in_msg.getData()
+                
+                if self.type == Message.TYPE_MMS:
+                    self.data = in_msg.getData()
+                
                 return
             
             except TimeoutError:
