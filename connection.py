@@ -49,6 +49,9 @@ class Connection:
     def get_status(self):
         return self.status
 
+    def set_port(self, pp):
+        self.destPort = pp
+
     def close(self):
         if self.__socket is None:
             raise ConnectionException('Conexão não foi previamente estabelecida')

@@ -27,21 +27,29 @@ class Client:
         (msg, _) = self.conn.receive()
         print("Recebida: ", msg)
 
+        if msg.getType() == Message.TYPE_ATE:
+            self.conn.close()
+            raise ClientException("Error: wrong credentials.")
+
+        if msg.getType() == Message.TYPE_FNF:
+            self.conn.close()
+            raise ClientException("Error: file not found.")
+
         if msg.getType() not in (Message.TYPE_TSG, Message.TYPE_FIN):
             self.conn.close()
-            raise ClientException("Error ao estabelecer conexão")
+            raise ClientException("Error: can't estabilish connection.")
 
 
         ##ACHO que está a mais
         #quando recebe um fin o cliente manda fin e fecha o socket
         elif msg.Message.TYPE_FIN() == Message.TYPE_FIN:
             self.conn.close()
-            raise ClientException("Error ao estabelecer conexão")
+            raise ClientException("Error: can't estabilish connection.")
 
         else:
             assert msg.getType() == Message.TYPE_TSG
             port = msg.getData()['port']
-            self.total_segments = msg.getData()['data']     # TODO verificar por causa dos json
+            self.total_segments = int(msg.getData()['data'])
             msg = Message()
             msg.makeMessage("", Message.TYPE_ACK)
             self.conn.send(msg)
