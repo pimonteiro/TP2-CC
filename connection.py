@@ -74,7 +74,8 @@ class Connection:
         msgbytes, address = self.__socket.recvfrom(Connection.MAX_MESSAGE_SIZE)
         msg = Message()
         msg.binaryToClass(msgbytes)
-
+        if msg.verifyIntegrity() == False:
+            msg = None
         return msg, address
 
     def __str__(self):

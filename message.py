@@ -25,6 +25,9 @@ class Header:
     def getSequence(self):
         return self.nsequence
 
+    def getChecksum(self):
+        return self.checksum
+
     def classToBinary(self):
         head = struct.pack('LHLc',self.checksum,self.size,self.nsequence,self.type.encode())
         return head
@@ -73,6 +76,9 @@ class Message:
 
     def getData(self):
         return self.data
+
+    def getChecksum(self):
+        return self.header.getChecksum()
 
     def classToBinary(self):
         head = self.header.classToBinary()
@@ -124,7 +130,7 @@ class Message:
     # mensagem cliente -> servidor (missing) (5)
     def makeMissingMessage(self, miss):
         data = {
-            'data': miss
+            "data": miss
         }
         che = Message.calculate_checksum(json.dumps(data))
         self.header = Header(che, Message.TYPE_MMS, 0, sys.getsizeof(data))
@@ -154,3 +160,15 @@ class Message:
         else:
             ordinalSum = sum(x for x in msg)
             return ordinalSum
+
+    def verifyIntegrity(self):
+        dat = self.data
+        if isinstance(self.data, dict):
+            dat = json.dumps(self.data)
+        orig = self.getChecksum()
+        givn = Message.calculate_checksum(dat)
+
+        if(orig == givn):
+            return True
+        else:
+            return False

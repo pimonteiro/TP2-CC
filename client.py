@@ -49,13 +49,6 @@ class Client:
             self.conn.close()
             raise ClientException("Error: can't estabilish connection.")
 
-
-        ##ACHO que está a mais
-        #quando recebe um fin o cliente manda fin e fecha o socket
-        if self.type == Message.TYPE_FIN:
-            self.conn.close()
-            raise ClientException("Error: can't estabilish connection.")
-
         else:
             assert self.type == Message.TYPE_TSG
             port = int(self.data["port"])
@@ -71,7 +64,10 @@ class Client:
         self.conn.set_status(status)
 
         while self.num_received < self.total_segments:
-            self.waitAnswer()
+            flag = self.waitAnswer()
+
+            if flag == 0:
+                continue # Checksum failed so we discard the packet
 
             if self.type not in (Message.TYPE_DAT, Message.TYPE_FIN):
                 self.conn.close()
@@ -108,12 +104,18 @@ class Client:
         while(retry < 3):
             try:
                 in_msg, _ = self.conn.receive()
+                # Verifying if message is None means that checksum failed
+                if in_msg is None and self.conn.get_status() != Connection.CONNECTING:
+                    return 0
+                elif in_msg is None and self.conn.get_status() == Connection.CONNECTING:
+                    raise TimeoutError
+
                 self.getHeaderValues(in_msg.getHeaderValues())
                 
                 if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS):
                     self.data = in_msg.getData()
                 
-                return
+                return 1
             
             except TimeoutError:
                 self.conn.send(self.msg)
