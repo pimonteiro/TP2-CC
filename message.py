@@ -10,6 +10,12 @@ class Header:
         self.nsequence = nseq
         self.size = siz
 
+    def __str__(self):
+        return  (   "checksum: " + str(self.checksum) +
+                    ", type: " + str(self.type) +
+                    ", nsequence: " + str(self.nsequence) +
+                    ", size: " + str(self.size) )
+
     def getType(self):
         return self.type
 
@@ -33,6 +39,8 @@ class Header:
         self.nsequence = nseq
         self.size = si
 
+    def getAllFields(self):
+        return (self.checksum, self.size, self.nsequence, self.type)
 
 class Message:
     HEADER_SIZE = 58
@@ -49,7 +57,13 @@ class Message:
 
     def __init__(self):
         self.header = Header(0,0,0,0)
-        self.data = ""      
+        self.data = ""  
+
+    def __str__(self):
+        return "HEADER: " + str(self.header) + "\nDATA: " + str(self.data) +"\n"
+
+    def getHeaderValues(self):
+        return self.header.getAllFields()    
 
     def getType(self):
         return self.header.getType()

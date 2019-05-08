@@ -24,16 +24,15 @@ class Connection:
 
     CLOSED = "CLOSED"
 
-    def __init__(self, destIp=None, destPort=None, sourceIp=None, sourcePort=None):
+    def __init__(self, destIp=None, destPort=None):
         self.destIp = destIp
         self.destPort = destPort
-        self.sourceIp = sourceIp
-        self.sourcePort = sourcePort
         self.__socket = socket(AF_INET, SOCK_DGRAM)
         self.status = Connection.DISCONNECTED
 
-        if sourceIp is not None and sourcePort is not None:
-            self.__socket.bind((self.sourceIp, self.sourcePort))
+        self.__socket.bind(("127.0.0.1", 0))
+        self.sourcePort = self.__socket.getsockname()[1]
+        self.sourceIp = self.__socket.getsockname()[0]
 
     def set_status(self, status):
         assert status in {
@@ -59,6 +58,12 @@ class Connection:
         self.__socket.close()
         self.__socket = None
         self.status = Connection.CLOSED
+
+    def get_SourcePort(self):
+        return self.sourcePort
+
+    def set_timeout(self,time):
+        self.__socket.settimeout(time)
 
     def send(self, msg):
         msgbytes = msg.classToBinary()

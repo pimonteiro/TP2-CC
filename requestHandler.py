@@ -3,30 +3,30 @@ import socket
 import json
 import sys
 import os
-from message import *
+from message import Message
 from struct import pack
 from struct import unpack
+from connection import Connection
 
 class requestHandler(threading.Thread):
     def __init__(self, skt, client_address):
         threading.Thread.__init__(self)
 
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)      #connection socket
-        self.socket.bind(('127.0.0.1',0))                                   #bind a free port
-        self.port = self.socket.getsockname()[1]                            #socket port
-        self.client_address = client_address                                #client address
-        self.op = json.loads(skt[0][25:].decode('utf-8'))                   #operation data
+        self.conn = Connection(client_address[0], client_address[1])        #client's connection
         self.data = {}                                                      #current data sent from client
         self.pieces = []                                                    #file's chunks
         self.msg = Message()                                                #message to be send
         self.flag = True
 
-        self.total_segments = 0
-        self.checksum = 0
-        self.nsequence = 0
-        self.type = 0
-        self.size = 0
-        self.getHeaderValues(skt[0][:25])
+        self.__msgaux__(skt[0])
+
+
+    def __msgaux__(self, mbytes):
+        m = Message()
+        m.binaryToClass(mbytes)
+
+        self.op = m.getData()                                           #operation data
+        self.getHeaderValues(m.getHeaderValues())                       #get the header
 
 
     def run(self):    
@@ -40,17 +40,16 @@ class requestHandler(threading.Thread):
 
         else:
             self.sendAuthError()
-            self.socket.close()
+            self.conn.close()
 
 
     def sendAuthError(self):
         self.msg.makeMessage("", Message.TYPE_ATE, 0)
-        self.socket.sendto(self.msg.classToBinary(), self.client_address)
+        self.conn.send(self.msg)
 
 
-    def getHeaderValues(self, msg):
-        self.checksum, self.size, self.nsequence, self.type = unpack('LHLc', msg)
-        self.type = self.type.decode('utf-8')
+    def getHeaderValues(self, values):
+        self.checksum, self.size, self.nsequence, self.type = values
 
     
     def updateData(self):
@@ -77,8 +76,8 @@ class requestHandler(threading.Thread):
         #verify if file exists
         if not os.path.exists("/tmp/" + filename):
             self.msg.makeMessage("", Message.TYPE_FNF, 0)
-            self.socket.sendto(self.msg.classToBinary(), self.client_address)
-            self.socket.close()
+            self.conn.send(self.msg)
+            self.conn.close()
             return
 
         #split the file into chunks and store it into a list
@@ -86,8 +85,8 @@ class requestHandler(threading.Thread):
         self.total_segments = self.chunkFile(filename)
 
         #send total segments
-        self.msg.makeTotalSegMessage(self.total_segments, self.port)
-        self.socket.sendto(self.msg.classToBinary(), self.client_address)
+        self.msg.makeTotalSegMessage(self.total_segments, self.conn.get_SourcePort())
+        self.conn.send(self.msg)
         
         #wait for the answer and process it
         self.process_answer()
@@ -97,7 +96,7 @@ class requestHandler(threading.Thread):
             self.process_answer()
 
         #close the scket
-        self.socket.close()
+        self.conn.close()
 
 
     def putFile(self):
@@ -120,40 +119,39 @@ class requestHandler(threading.Thread):
         else:
             chunk = self.pieces[index]
 
-        print("size of chunk:", sys.getsizeof(chunk))
         self.msg.makeMessage(chunk, Message.TYPE_FIN, self.total_segments-1)
-        self.socket.sendto(self.msg.classToBinary(), self.client_address)
-        print("size of message:", sys.getsizeof(self.msg.classToBinary()))
+        self.conn.send(self.msg)
 
 
     def sendChunk(self, segment):
         chunk = self.pieces[segment]
         self.msg.makeMessage(chunk, Message.TYPE_DAT, segment)
-        self.socket.sendto(self.msg.classToBinary(), self.client_address)
+        self.conn.send(self.msg)
 
 
     def sendAll(self):
         for n in range(self.total_segments - 1):
             chunk = self.pieces[n]
             self.msg.makeMessage(chunk, Message.TYPE_DAT, n)
-            self.socket.sendto(self.msg.classToBinary(), self.client_address)
+            self.conn.send(self.msg)
             
         self.sendLast()
 
 
     def waitAnswer(self):
         retry = 0
-        self.socket.settimeout(1)
+        self.conn.set_timeout(1)
 
         while(retry < 3):
             try:
-                in_msg = self.socket.recv(2048)
-                self.getHeaderValues(in_msg[:25])
-                self.data = in_msg[:25]
+                in_msg, _ = self.conn.receive()
+                print(in_msg)
+                self.getHeaderValues(in_msg.getHeaderValues())
+                self.data = in_msg.getData()
                 return
             
             except TimeoutError:
-                self.socket.sendto(self.msg.classToBinary(), self.client_address)
+                self.conn.send(self.msg)
                 retry += 1
 
         raise TimeoutError
