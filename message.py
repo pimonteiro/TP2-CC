@@ -54,6 +54,7 @@ class Message:
     HEADER_SIZE = 58
     HEADER_LENGTH = 25
 
+    TYPE_KAL = "0"
     TYPE_SYN = "1"
     TYPE_ACK = "2"
     TYPE_DAT = "3"

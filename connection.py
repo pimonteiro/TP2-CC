@@ -1,5 +1,6 @@
 from message import Message
 import json
+import threading
 
 from socket import *
 
@@ -34,6 +35,8 @@ class Connection:
         self.sourcePort = self.__socket.getsockname()[1]
         self.sourceIp = self.__socket.getsockname()[0]
 
+        self.lock = threading.Lock()
+
     def set_status(self, status):
         assert status in {
             Connection.DISCONNECTED,
@@ -43,40 +46,61 @@ class Connection:
             Connection.RECEIVING_MISSING,
             Connection.CLOSED
         }
-        self.status = status
+
+        with self.lock:
+            self.status = status
 
     def get_status(self):
-        return self.status
+        with self.lock:
+            return self.status
 
     def set_port(self, pp):
-        self.destPort = pp
+        with self.lock:
+            self.destPort = pp
 
     def close(self):
         if self.__socket is None:
             raise ConnectionException('Conexão não foi previamente estabelecida')
 
-        self.__socket.close()
-        self.__socket = None
-        self.status = Connection.CLOSED
+        with self.lock:
+            self.__socket.close()
+            self.__socket = None
+            self.status = Connection.CLOSED
 
     def get_SourcePort(self):
-        return self.sourcePort
+        with self.lock:
+            return self.sourcePort
 
     def set_timeout(self,time):
-        self.__socket.settimeout(time)
+        with self.lock:
+            self.__socket.settimeout(time)
 
     def send(self, msg):
         msgbytes = msg.classToBinary()
         assert len(msgbytes) < Connection.MAX_MESSAGE_SIZE
-        self.__socket.sendto(msgbytes, (self.destIp, self.destPort))
+
+        with self.lock:
+            self.__socket.sendto(msgbytes, (self.destIp, self.destPort))
 
     def receive(self):
-        msgbytes, address = self.__socket.recvfrom(Connection.MAX_MESSAGE_SIZE)
+        with self.lock:
+            msgbytes, address = self.__socket.recvfrom(Connection.MAX_MESSAGE_SIZE)
+        
         msg = Message()
         msg.binaryToClass(msgbytes)
         if msg.verifyIntegrity() == False:
             msg = None
         return msg, address
+
+    def receive_lite(self):
+        with self.lock:
+            msgbytes, _ = self.__socket.recvfrom(Connection.MAX_MESSAGE_SIZE)
+        
+        return msgbytes
+
+    def keepAlive(self, msg):        
+        with self.lock:
+            self.__socket.sendto(msg, (self.destIp, self.destPort))
 
     def __str__(self):
         value = \

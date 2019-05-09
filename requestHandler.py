@@ -163,7 +163,7 @@ class requestHandler(threading.Thread):
         while(retry < 3):
             try:
                 in_msg, _ = self.conn.receive()
-                print(str(in_msg))
+                print("RECEBI: ", str(in_msg))
                 self.getHeaderValues(in_msg.getHeader())
                 
                 if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS, Message.TYPE_FIN):
@@ -184,8 +184,6 @@ class requestHandler(threading.Thread):
         #if self.type == message.ConnectionMessage.TYPE:
         #    self.process_connect(msg, address)
 
-        print("SAI!")
-        print(self.type)
         if self.type == Message.TYPE_ACK:
             self.process_ack()
             self.conn.set_status(Connection.CONNECTED)

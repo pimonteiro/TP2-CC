@@ -3,6 +3,8 @@ from connection import Connection
 import rootserver
 import argparse
 import socket
+import agentUDP
+import threading
 
 
 class ClientException(Exception):
@@ -17,6 +19,10 @@ class Client:
         self.received = {}
         self.msg = Message()
 
+        self.buffer = []
+        self.buffer_lock = threading.Condition(threading.Lock())
+        self.agent = agentUDP.agentUDP(self.conn, self.buffer, self.buffer_lock)
+
         self.data = -1
         self.checksum = -1
         self.type = "0"
@@ -26,7 +32,6 @@ class Client:
 
 
     def getHeaderValues(self, values):
-        print(values)
         self.checksum, self.type, self.nsequence, self.size = values
 
     # Função que estabelece os requisitos que o cliente envia ao servidor para estabelecer a conexão
@@ -71,47 +76,67 @@ class Client:
     def receive_data(self, status=Connection.CONNECTED):
         self.conn.set_status(status)
 
+        self.agent.start()
+
+        m = Message()
+
         while self.num_received < self.total_segments:
-            flag = self.waitAnswer()
-            self.conn.set_status(Connection.RECEIVING_NORMAL)
+            try:
+                self.conn.set_status(Connection.RECEIVING_NORMAL)
 
-            if flag == 0:
-                continue # Checksum failed so we discard the packet
+                with self.buffer_lock:
+                    while len(self.buffer) < 1:
+                        self.buffer_lock.wait(1)
 
-            # TODO adicionar clausulas por causa do estado do cliente
+                    mbytes = self.buffer.pop(0)
 
-            if self.type not in (Message.TYPE_DAT, Message.TYPE_FIN):
-                if self.msg.getType() == Message.TYPE_TSG:
-                    continue
-                if self.msg.getType() == Message.TYPE_SYN:
-                    raise ClientException("Wrong packet order: SYN")
-                #self.conn.close()
-                #raise ClientException("Error ao receber dados")
 
-            if self.received.get(self.nsequence) is None:
-                print(str(self.nsequence) + " -- > " + str(self.data))
-                self.num_received += 1
-                self.received[self.nsequence] = self.data
+                m.binaryToClass(mbytes)
 
-            if self.type == Message.TYPE_FIN:
-                missed = self.get_missing()
-                if len(missed) == 0:
-                    self.msg.makeMessage("",Message.TYPE_FIN, 0)
-                    self.conn.send(self.msg)
-                    self.conn.close()
-                    self.conn.set_status(Connection.CLOSED)
-                
-                else:
-                    self.msg.makeMissingMessage(missed)
-                    self.conn.send(self.msg)
-                    self.conn.set_status(Connection.RECEIVING_MISSING)
-                    
+                if m.verifyIntegrity():
+                    self.getHeaderValues(m.getHeader())
+
+                    # TODO adicionar clausulas por causa do estado do cliente
+
+                    if self.type not in (Message.TYPE_DAT, Message.TYPE_FIN):
+                        if self.msg.getType() == Message.TYPE_TSG:
+                            continue
+                        if self.msg.getType() == Message.TYPE_SYN:
+                            raise ClientException("Wrong packet order: SYN")
+                        #self.conn.close()
+                        #raise ClientException("Error ao receber dados")
+
+                    if self.received.get(self.nsequence) is None:
+                        #print(str(self.nsequence) + " -- > " + str(self.data))
+                        self.num_received += 1
+                        self.received[self.nsequence] = m.getData()
+
+                    if self.type == Message.TYPE_FIN:
+                        self.verifyMissing()
+
+            except RuntimeError:
+                self.verifyMissing()
 
     def get_missing(self):
         received = set(self.received.keys())
         total = set(range(self.total_segments))
         return total.difference(received)
 
+
+    def verifyMissing(self):
+        missed = self.get_missing()
+        if len(missed) == 0:
+            self.agent.stopAgent()
+            self.msg.makeMessage("",Message.TYPE_FIN, 0)
+            self.conn.send(self.msg)
+            self.conn.close()
+            self.conn.set_status(Connection.CLOSED)
+            return
+        
+        else:
+            self.msg.makeMissingMessage(missed)
+            self.conn.send(self.msg)
+            self.conn.set_status(Connection.RECEIVING_MISSING)
 
     def waitAnswer(self):
         retry = 0
@@ -185,7 +210,7 @@ def main():
 
     with open(args.filename, "wb") as file:
         for n in range(client.total_segments):
-            print(client.received[n])
+            #print(client.received[n])
             file.write(client.received[n])
 
     server.stop()
