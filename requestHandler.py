@@ -52,7 +52,6 @@ class requestHandler(threading.Thread):
 
 
     def getHeaderValues(self, values):
-        print(values)
         self.checksum,  self.type, self.nsequence, self.size = values
 
     
@@ -80,6 +79,7 @@ class requestHandler(threading.Thread):
         #verify if file exists
         if not os.path.exists("shared/" + filename):
             self.msg.makeMessage("", Message.TYPE_FNF, 0)
+            print("Enviada: " + str(self.msg))
             self.conn.send(self.msg)
             self.conn.close()
             return
@@ -91,7 +91,7 @@ class requestHandler(threading.Thread):
         #send total segments
         self.msg.makeTotalSegMessage(self.total_segments, self.conn.get_SourcePort())
         self.conn.send(self.msg)
-        print("Message sent: " + str(self.msg))
+        print("Enviado: " + str(self.msg))
         self.conn.set_status(Connection.CONNECTING)
         
         #wait for the answer and process it
@@ -107,17 +107,17 @@ class requestHandler(threading.Thread):
 
     def putFile(self):
         self.msg.makeMessage("", Message.TYPE_COR, 0)
+        print("Enviada: " + str(self.msg))
         self.conn.send(self.msg)
 
         self.conn.set_status(Connection.CLOSED)
 
         client = Client("127.0.0.1", self.my_server_port)
-        client.connect(username="teste", password="123", action="get", filename=self.op["filename"], ## data from request received
+        client.connect(username=self.op["username"], password=self.op["password"], action="get", filename=self.op["filename"], ## data from request received
                        my_server_port=self.my_server_port)
         client.receive_data()
-        with open("teste", "wb") as file:           ##data from request received
+        with open(self.op["username"], "wb") as file:           ##data from request received
             for n in range(client.total_segments):
-                print(client.received[n])
                 file.write(client.received[n])
         self.conn.close()
 
@@ -138,12 +138,14 @@ class requestHandler(threading.Thread):
             chunk = self.pieces[index]
 
         self.msg.makeMessage(chunk, Message.TYPE_FIN, self.total_segments-1)
+        print("Enviada: " + str(self.msg))
         self.conn.send(self.msg)
 
 
     def sendChunk(self, segment):
         chunk = self.pieces[segment]
         self.msg.makeMessage(chunk, Message.TYPE_DAT, segment)
+        print("Enviada: " + str(self.msg))
         self.conn.send(self.msg)
 
 
@@ -151,6 +153,7 @@ class requestHandler(threading.Thread):
         for n in range(self.total_segments - 1):
             chunk = self.pieces[n]
             self.msg.makeMessage(chunk, Message.TYPE_DAT, n)
+            print("Enviada: " + str(self.msg))
             self.conn.send(self.msg)
             
         self.sendLast()
@@ -163,7 +166,7 @@ class requestHandler(threading.Thread):
         while(retry < 3):
             try:
                 in_msg, _ = self.conn.receive()
-                print(str(in_msg))
+                print("Recebida: " + str(in_msg))
                 self.getHeaderValues(in_msg.getHeader())
                 
                 if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS, Message.TYPE_FIN):
@@ -184,8 +187,6 @@ class requestHandler(threading.Thread):
         #if self.type == message.ConnectionMessage.TYPE:
         #    self.process_connect(msg, address)
 
-        print("SAI!")
-        print(self.type)
         if self.type == Message.TYPE_ACK:
             self.process_ack()
             self.conn.set_status(Connection.CONNECTED)

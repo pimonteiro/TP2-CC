@@ -1,6 +1,7 @@
 import socketserver
 import requestHandler
 from threading import Thread
+from message import Message
 
 
 
@@ -20,5 +21,6 @@ class RootServer(Thread):
             rh = requestHandler.requestHandler(skt, addr)
             rh.start()
 
+        print("Exiting server thread.")
     def stop(self):
         self.__flag = True

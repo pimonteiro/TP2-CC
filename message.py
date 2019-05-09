@@ -108,8 +108,6 @@ class Message:
         else:
             self.data = mbytes[Message.HEADER_LENGTH:]
 
-        print(str(self.header))
-        print(str(self.data))
 
     # primeira mensagem cliente -> servidor (1)
     def makeConnectionMessage(self, username, password, action, filename, my_server_port):

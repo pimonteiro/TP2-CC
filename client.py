@@ -26,7 +26,6 @@ class Client:
 
 
     def getHeaderValues(self, values):
-        print(values)
         self.checksum, self.type, self.nsequence, self.size = values
 
     # Função que estabelece os requisitos que o cliente envia ao servidor para estabelecer a conexão
@@ -55,7 +54,8 @@ class Client:
 
         if self.type == Message.TYPE_COR:
             self.conn.close()
-            print("Change of roles........... Closing.")
+            print("Change of roles........... Closing this client.")
+
 
         else:
             assert self.type == Message.TYPE_TSG
@@ -89,7 +89,6 @@ class Client:
                 #raise ClientException("Error ao receber dados")
 
             if self.received.get(self.nsequence) is None:
-                print(str(self.nsequence) + " -- > " + str(self.data))
                 self.num_received += 1
                 self.received[self.nsequence] = self.data
 
@@ -140,9 +139,11 @@ class Client:
                     missed = self.get_missing()
                     self.msg.makeMissingMessage(missed)
                     self.conn.send(self.msg)
+                    print("Enviada missing: " + str(self.msg))
                     self.conn.set_status(Connection.RECEIVING_MISSING)
                 elif self.conn.get_status() == Connection.CONNECTING:
                     self.msg.makeMessage("",Message.TYPE_ACK, 0)
+                    print("Enviada missing: " + str(self.msg))
                     self.conn.send(self.msg)
                 #else:
                     #self.conn.send(self.msg)
@@ -174,6 +175,7 @@ def main():
         server.start()
         return
 
+    print("Internal server starting.....")
     #server.daemon = True
     server.start()
 
@@ -185,11 +187,10 @@ def main():
 
     with open(args.filename, "wb") as file:
         for n in range(client.total_segments):
-            print(client.received[n])
             file.write(client.received[n])
 
-    server.stop()
     print("Stoping internal server......")
+    server.join()
 
 
 if __name__ == '__main__':
