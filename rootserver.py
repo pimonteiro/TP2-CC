@@ -16,7 +16,7 @@ class RootServer(Thread):
 
         while not self.__flag:
             skt, addr = server.get_request()
-            print("Starting internal server....")
+            print("Starting helper server thread....")
             rh = requestHandler.requestHandler(skt, addr)
             rh.start()
 

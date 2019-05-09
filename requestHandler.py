@@ -52,7 +52,8 @@ class requestHandler(threading.Thread):
 
 
     def getHeaderValues(self, values):
-        self.checksum, self.size, self.nsequence, self.type = values
+        print(values)
+        self.checksum,  self.type, self.nsequence, self.size = values
 
     
     def updateData(self):
@@ -105,8 +106,11 @@ class requestHandler(threading.Thread):
         self.conn.set_status(Connection.CLOSED)
 
     def putFile(self):
-        self.msg.makeMessage("", Message.TYPE_FIN, 0)
+        self.msg.makeMessage("", Message.TYPE_COR, 0)
         self.conn.send(self.msg)
+
+        self.conn.set_status(Connection.CLOSED)
+
         client = Client("127.0.0.1", self.my_server_port)
         client.connect(username="teste", password="123", action="get", filename=self.op["filename"], ## data from request received
                        my_server_port=self.my_server_port)
@@ -115,8 +119,8 @@ class requestHandler(threading.Thread):
             for n in range(client.total_segments):
                 print(client.received[n])
                 file.write(client.received[n])
-
         self.conn.close()
+
 
     def auth(self):
         if (self.op["username"] == "teste" and self.op["password"] == "123"):
@@ -154,24 +158,25 @@ class requestHandler(threading.Thread):
 
     def waitAnswer(self):
         retry = 0
-        self.conn.set_timeout(1)
+        self.conn.set_timeout(10)
 
         while(retry < 3):
             try:
-                print(str(self.conn))
                 in_msg, _ = self.conn.receive()
+                print(str(in_msg))
                 self.getHeaderValues(in_msg.getHeader())
                 
-                if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS):
+                if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS, Message.TYPE_FIN):
                     self.data = in_msg.getData()
-                
+
                 return
             
-            except TimeoutError:
+            except Exception as e:
+                print(str(e))
                 self.conn.send(self.msg)
                 retry += 1
 
-        raise TimeoutError
+        raise socket.timeout
 
 
     def process_answer(self):
@@ -179,6 +184,8 @@ class requestHandler(threading.Thread):
         #if self.type == message.ConnectionMessage.TYPE:
         #    self.process_connect(msg, address)
 
+        print("SAI!")
+        print(self.type)
         if self.type == Message.TYPE_ACK:
             self.process_ack()
             self.conn.set_status(Connection.CONNECTED)
@@ -211,4 +218,5 @@ class requestHandler(threading.Thread):
     
     def process_ack(self):
         #send all chunks of the file
+        print("Enviando tudo.....")
         self.sendAll()

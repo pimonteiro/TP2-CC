@@ -62,6 +62,7 @@ class Message:
     TYPE_FIN = "6"
     TYPE_ATE = "7"
     TYPE_FNF = "8"
+    TYPE_COR = "9"
 
     def __init__(self):
         self.header = Header(0, 0, 0, 0)
@@ -107,6 +108,9 @@ class Message:
         else:
             self.data = mbytes[Message.HEADER_LENGTH:]
 
+        print(str(self.header))
+        print(str(self.data))
+
     # primeira mensagem cliente -> servidor (1)
     def makeConnectionMessage(self, username, password, action, filename, my_server_port):
         data = {
@@ -129,7 +133,7 @@ class Message:
     # mensagem cliente -> servidor (missing) (5)
     def makeMissingMessage(self, miss):
         data = {
-            'data': miss
+            'data': list(miss)
         }
         che = Message.calculate_checksum(json.dumps(data))
         self.header = Header(che, Message.TYPE_MMS, 0, sys.getsizeof(data))

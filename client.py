@@ -2,6 +2,7 @@ from message import Message
 from connection import Connection
 import rootserver
 import argparse
+import socket
 
 
 class ClientException(Exception):
@@ -48,9 +49,13 @@ class Client:
             self.conn.close()
             raise ClientException("Error: file not found.")
 
-        if self.type not in (Message.TYPE_TSG, Message.TYPE_FIN):
+        if self.type not in (Message.TYPE_TSG, Message.TYPE_FIN, Message.TYPE_COR):
             self.conn.close()
             raise ClientException("Error: can't estabilish connection.")
+
+        if self.type == Message.TYPE_COR:
+            self.conn.close()
+            print("Change of roles........... Closing.")
 
         else:
             assert self.type == Message.TYPE_TSG
@@ -62,21 +67,29 @@ class Client:
             print("Enviada: ", self.msg)
 
         self.conn.set_status(Connection.CONNECTED)
-            
-    def receive_data(self, status=Connection.RECEIVING_NORMAL):
+
+    def receive_data(self, status=Connection.CONNECTED):
         self.conn.set_status(status)
 
         while self.num_received < self.total_segments:
             flag = self.waitAnswer()
+            self.conn.set_status(Connection.RECEIVING_NORMAL)
 
             if flag == 0:
                 continue # Checksum failed so we discard the packet
 
+            # TODO adicionar clausulas por causa do estado do cliente
+
             if self.type not in (Message.TYPE_DAT, Message.TYPE_FIN):
-                self.conn.close()
-                raise ClientException("Error ao receber dados")
+                if self.msg.getType() == Message.TYPE_TSG:
+                    continue
+                if self.msg.getType() == Message.TYPE_SYN:
+                    raise ClientException("Wrong packet order: SYN")
+                #self.conn.close()
+                #raise ClientException("Error ao receber dados")
 
             if self.received.get(self.nsequence) is None:
+                print(str(self.nsequence) + " -- > " + str(self.data))
                 self.num_received += 1
                 self.received[self.nsequence] = self.data
 
@@ -106,27 +119,36 @@ class Client:
 
         while(retry < 3):
             try:
-                print(str(self.conn))
+                #print(str(self.conn))
                 in_msg, _ = self.conn.receive()
                 print("Recebida: " + str(in_msg))
                 # Verifying if message is None means that checksum failed
                 if in_msg is None and self.conn.get_status() != Connection.CONNECTING:
                     return 0
                 elif in_msg is None and self.conn.get_status() == Connection.CONNECTING:
-                    raise TimeoutError
+                    raise socket.timeout
 
                 self.getHeaderValues(in_msg.getHeader())
                 
-                if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS):
+                if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS, Message.TYPE_FIN):
                     self.data = in_msg.getData()
                 
                 return 1
             
-            except TimeoutError:
-                self.conn.send(self.msg)
+            except socket.timeout:
+                if self.conn.get_status() in (Connection.RECEIVING_NORMAL, Connection.RECEIVING_MISSING):
+                    missed = self.get_missing()
+                    self.msg.makeMissingMessage(missed)
+                    self.conn.send(self.msg)
+                    self.conn.set_status(Connection.RECEIVING_MISSING)
+                elif self.conn.get_status() == Connection.CONNECTING:
+                    self.msg.makeMessage("",Message.TYPE_ACK, 0)
+                    self.conn.send(self.msg)
+                #else:
+                    #self.conn.send(self.msg)
                 retry += 1
 
-        raise TimeoutError
+        raise socket.timeout
 
 
 
@@ -161,15 +183,13 @@ def main():
     client.connect(username=args.username, password=args.password, action=args.action, filename=args.filename, my_server_port=args.my_server_port)
     client.receive_data()
 
-    print(client.received)
-
     with open(args.filename, "wb") as file:
         for n in range(client.total_segments):
             print(client.received[n])
             file.write(client.received[n])
 
     server.stop()
-    print("Stoping internaç server......")
+    print("Stoping internal server......")
 
 
 if __name__ == '__main__':
