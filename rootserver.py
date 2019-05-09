@@ -1,19 +1,24 @@
 import socketserver
-import socket
-import json
 import requestHandler
+from threading import Thread
 
-HOST, PORT = "localhost", 9999
 
-server = socketserver.UDPServer((HOST,PORT),None)
 
-while True:
-    skt, addr = server.get_request()
-    #msg = skt[0].decode("utf-8")
-    #skt = skt[1]
-    #print("endereco: " + str(addr))
-    #print("socket: " + str(skt))
-    #print("mensagem: " + str(msg))
-    rh = requestHandler.requestHandler(skt,addr)
-    rh.start()
+class RootServer(Thread):
+    def __init__(self, host="localhost", port=9999):
+        Thread.__init__(self)
+        self.__host = host
+        self.__port = port
+        self.__flag = False
 
+    def run(self):
+        server = socketserver.UDPServer((self.__host, self.__port), None)
+
+        while not self.__flag:
+            skt, addr = server.get_request()
+            print("inICIEI SOCKETs")
+            rh = requestHandler.requestHandler(skt, addr)
+            rh.start()
+
+    def stop(self):
+        self.__flag = True

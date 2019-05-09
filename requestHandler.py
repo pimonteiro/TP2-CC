@@ -6,6 +6,7 @@ import os
 from message import *
 from struct import pack
 from struct import unpack
+from client import Client
 
 class requestHandler(threading.Thread):
     def __init__(self, skt, client_address):
@@ -20,6 +21,7 @@ class requestHandler(threading.Thread):
         self.pieces = []                                                    #file's chunks
         self.msg = Message()                                                #message to be send
         self.flag = True
+        self.my_server_port = 0
 
         self.total_segments = 0
         self.checksum = 0
@@ -36,6 +38,7 @@ class requestHandler(threading.Thread):
                 self.getFile()
 
             elif self.op["action"].upper() == "PUT":
+                self.my_server_port = self.op["my_server_port"]
                 self.putFile()
 
         else:
@@ -101,8 +104,13 @@ class requestHandler(threading.Thread):
 
 
     def putFile(self):
-        pass
-
+        msg = Message()
+        msg.makeMessage("", Message.TYPE_FIN, 0)
+        self.socket.sendto(msg.classToBinary(), self.client_address)
+        self.socket.close()
+        client = Client("127.0.0.1", self.my_server_port)
+        client.connect(username="teste", password="123", action="get", filename=self.op["filename"], my_server_port=self.my_server_port)
+        client.receive_data()
 
 
     def auth(self):

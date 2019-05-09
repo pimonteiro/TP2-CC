@@ -33,6 +33,18 @@ class Header:
         self.nsequence = nseq
         self.size = si
 
+    def __str__(self):
+        value = \
+            {
+                "checksum": self.checksum,
+                "type": self.type,
+                "nsequence": self.nsequence,
+                "size": self.size
+            }
+
+        return "header: " + str(value)
+
+
 
 class Message:
     HEADER_SIZE = 58
@@ -86,12 +98,13 @@ class Message:
             self.data = mbytes[Message.HEADER_LENGTH:]
 
     # primeira mensagem cliente -> servidor (1)
-    def makeConnectionMessage(self, username, password, action, filename):
+    def makeConnectionMessage(self, username, password, action, filename, my_server_port):
         data = {
             "username": username,
             "password": password,
             "action": action,
-            "filename": filename
+            "filename": filename,
+            "my_server_port": my_server_port
         }
         che = Message.calculate_checksum(json.dumps(data))
         self.header = Header(che, Message.TYPE_SYN, 0, sys.getsizeof(data))
@@ -121,12 +134,6 @@ class Message:
         self.header = Header(che, Message.TYPE_TSG, 0, sys.getsizeof(data))
         self.data = data
 
-    #@staticmethod
-    #def calculate_checksum(msg):
-    #    assert isinstance(msg, str)
-    #    ordinalSum = sum(ord(x) for x in msg)
-    #    return ordinalSum
-
     @staticmethod
     def calculate_checksum(msg):
         assert isinstance(msg, (bytes, str))
@@ -136,3 +143,13 @@ class Message:
         else:
             ordinalSum = sum(x for x in msg)
             return ordinalSum
+
+
+    def __str__(self):
+        value = \
+            {
+                "header": str(self.header),
+                "data": str(self.data)
+            }
+
+        return "message: " + str(value)

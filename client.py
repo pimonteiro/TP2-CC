@@ -1,6 +1,7 @@
 from message import Message
 from connection import Connection
-
+import rootserver
+import argparse
 
 class ClientException(Exception):
     pass
@@ -14,9 +15,9 @@ class Client:
         self.received = {}
 
     # Função que estabelece os requisitos que o cliente envia ao servidor para estabelecer a conexão
-    def connect(self, username, password, action, filename):
+    def connect(self, username, password, action, filename, my_server_port):
         msg = Message()
-        msg.makeConnectionMessage(username=username, password=password, action=action, filename=filename)
+        msg.makeConnectionMessage(username=username, password=password, action=action, filename=filename, my_server_port=my_server_port)
 
         self.conn.set_status(Connection.CONNECTING)
 
@@ -79,7 +80,7 @@ class Client:
                 missed = self.get_missing()
                 if missed.__len__() == 0:
                     msg = Message()
-                    msg.makeMessage("",Message.TYPE_FIN, 0)
+                    msg.makeMessage("", Message.TYPE_FIN, 0)
                     self.conn.send(msg)
                     self.conn.close()
                     self.conn.set_status(Connection.CLOSED)
@@ -95,22 +96,45 @@ class Client:
         total = set(range(self.total_segments))
         return total.difference(received)
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Parâmetros para o programa.")
+    parser.add_argument('--username', type=str, help='Utilizador para autenticação')
+    parser.add_argument('--password', type=str, help='password do utilizador')
+    parser.add_argument('--action', type=str, help='Ação', choices=['GET', 'PUT'])
+    parser.add_argument('--filename', type=str, help='Ficheiro pedido')
+    parser.add_argument('--server_port', type=int, help='Porta do servidor')
+    parser.add_argument('--server_ip', type=str, help='IP do servidor')
+    parser.add_argument('--my_server_port', type=int, help='Porta do cliente caso assuma a posição de servidor')
+
+
+    return parser.parse_args()
+
 
 def main():
-    client = Client("127.0.0.1", 9999)
-    client.connect(username="teste", password="123", action="get", filename="TP1.pdf")
+    args = parse_arguments()
+
+    server = rootserver.RootServer("127.0.0.1", args.my_server_port)
+    if args.server_port is None:
+        server.start()
+        return
+
+    #server.daemon = True
+    server.start()
+
+    print("Starting client.....s")
+
+    client = Client(args.server_ip, args.server_port)
+    client.connect(username=args.username, password=args.password, action=args.action, filename=args.filename, my_server_port=args.my_server_port)
     client.receive_data()
 
     print(client.received)
 
-    with open("TP1.pdf", "wb") as file:
+    with open(args.filename, "wb") as file:
         for n in range(client.total_segments):
             print(client.received[n])
             file.write(client.received[n])
 
-
-        
-
+    server.stop()
 
 
 if __name__ == '__main__':
