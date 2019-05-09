@@ -87,6 +87,7 @@ class requestHandler(threading.Thread):
         #send total segments
         self.msg.makeTotalSegMessage(self.total_segments, self.conn.get_SourcePort())
         self.conn.send(self.msg)
+        self.conn.set_status(Connection.CONNECTING)
         
         #wait for the answer and process it
         self.process_answer()
@@ -97,6 +98,7 @@ class requestHandler(threading.Thread):
 
         #close the scket
         self.conn.close()
+        self.conn.set_status(Connection.CLOSED)
 
 
     def putFile(self):
@@ -166,6 +168,7 @@ class requestHandler(threading.Thread):
 
         if self.type == Message.TYPE_ACK:
             self.process_ack()
+            self.conn.set_status(Connection.CONNECTED)
 
         #if self.type == message.DataMessage.TYPE:
         #    self.process_data(msg, address)

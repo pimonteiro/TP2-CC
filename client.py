@@ -135,9 +135,6 @@ def main():
             file.write(client.received[n])
 
 
-        
-
-
 
 if __name__ == '__main__':
     main()
