@@ -7,6 +7,8 @@ from message import Message
 from struct import pack
 from struct import unpack
 from connection import Connection
+from client import Client
+
 
 class requestHandler(threading.Thread):
     def __init__(self, skt, client_address):
@@ -25,8 +27,9 @@ class requestHandler(threading.Thread):
         m = Message()
         m.binaryToClass(mbytes)
 
-        self.op = m.getData()                                           #operation data
-        self.getHeaderValues(m.getHeaderValues())                       #get the header
+        self.op = m.getData()                                                   #operation data
+        self.getHeaderValues(m.getHeader())                                                  #get the header
+        self.my_server_port = self.op["my_server_port"]
 
 
     def run(self):    
@@ -57,7 +60,7 @@ class requestHandler(threading.Thread):
 
 
     def chunkFile(self, filename):
-        with open("/tmp/" + str(filename), "rb") as file:
+        with open("shared/" + str(filename), "rb") as file:
             chunk = True
 
             while chunk:
@@ -74,7 +77,7 @@ class requestHandler(threading.Thread):
         filename = self.op["filename"]
 
         #verify if file exists
-        if not os.path.exists("/tmp/" + filename):
+        if not os.path.exists("shared/" + filename):
             self.msg.makeMessage("", Message.TYPE_FNF, 0)
             self.conn.send(self.msg)
             self.conn.close()
@@ -87,6 +90,7 @@ class requestHandler(threading.Thread):
         #send total segments
         self.msg.makeTotalSegMessage(self.total_segments, self.conn.get_SourcePort())
         self.conn.send(self.msg)
+        print("Message sent: " + str(self.msg))
         self.conn.set_status(Connection.CONNECTING)
         
         #wait for the answer and process it
@@ -100,11 +104,19 @@ class requestHandler(threading.Thread):
         self.conn.close()
         self.conn.set_status(Connection.CLOSED)
 
-
     def putFile(self):
-        pass
+        self.msg.makeMessage("", Message.TYPE_FIN, 0)
+        self.conn.send(self.msg)
+        client = Client("127.0.0.1", self.my_server_port)
+        client.connect(username="teste", password="123", action="get", filename=self.op["filename"], ## data from request received
+                       my_server_port=self.my_server_port)
+        client.receive_data()
+        with open("teste", "wb") as file:           ##data from request received
+            for n in range(client.total_segments):
+                print(client.received[n])
+                file.write(client.received[n])
 
-
+        self.conn.close()
 
     def auth(self):
         if (self.op["username"] == "teste" and self.op["password"] == "123"):
@@ -146,8 +158,9 @@ class requestHandler(threading.Thread):
 
         while(retry < 3):
             try:
+                print(str(self.conn))
                 in_msg, _ = self.conn.receive()
-                self.getHeaderValues(in_msg.getHeaderValues())
+                self.getHeaderValues(in_msg.getHeader())
                 
                 if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS):
                     self.data = in_msg.getData()
@@ -194,7 +207,6 @@ class requestHandler(threading.Thread):
 
         self.sendLast(size-1)
 
-        
 
     
     def process_ack(self):

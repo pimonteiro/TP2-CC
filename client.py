@@ -1,6 +1,7 @@
 from message import Message
 from connection import Connection
-import json
+import rootserver
+import argparse
 
 
 class ClientException(Exception):
@@ -24,15 +25,17 @@ class Client:
 
 
     def getHeaderValues(self, values):
-        self.checksum, self.size, self.nsequence, self.type = values
+        print(values)
+        self.checksum, self.type, self.nsequence, self.size = values
 
     # Função que estabelece os requisitos que o cliente envia ao servidor para estabelecer a conexão
-    def connect(self, username, password, action, filename):
-        self.msg.makeConnectionMessage(username=username, password=password, action=action, filename=filename)
-
+    def connect(self, username, password, action, filename, my_server_port):
+        self.msg.makeConnectionMessage(username=username, password=password, action=action, filename=filename,
+                                  my_server_port=my_server_port)
         self.conn.set_status(Connection.CONNECTING)
 
         self.conn.send(self.msg)
+        print("Enviada: ", self.msg)
         self.waitAnswer()
 
         #TODO: Cliente consegue ser unicamente identificado
@@ -103,14 +106,16 @@ class Client:
 
         while(retry < 3):
             try:
+                print(str(self.conn))
                 in_msg, _ = self.conn.receive()
+                print("Recebida: " + str(in_msg))
                 # Verifying if message is None means that checksum failed
                 if in_msg is None and self.conn.get_status() != Connection.CONNECTING:
                     return 0
                 elif in_msg is None and self.conn.get_status() == Connection.CONNECTING:
                     raise TimeoutError
 
-                self.getHeaderValues(in_msg.getHeaderValues())
+                self.getHeaderValues(in_msg.getHeader())
                 
                 if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS):
                     self.data = in_msg.getData()
@@ -125,15 +130,46 @@ class Client:
 
 
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Parâmetros para o programa.")
+    parser.add_argument('--username', type=str, help='Utilizador para autenticação')
+    parser.add_argument('--password', type=str, help='password do utilizador')
+    parser.add_argument('--action', type=str, help='Ação', choices=['GET', 'PUT'])
+    parser.add_argument('--filename', type=str, help='Ficheiro pedido')
+    parser.add_argument('--server_port', type=int, help='Porta do servidor')
+    parser.add_argument('--server_ip', type=str, help='IP do servidor')
+    parser.add_argument('--my_server_port', type=int, help='Porta do cliente caso assuma a posição de servidor')
+
+
+    return parser.parse_args()
+
+
 def main():
-    client = Client("127.0.0.1", 9999)
-    client.connect(username="teste", password="123", action="get", filename="TP1.pdf")
+    args = parse_arguments()
+
+    server = rootserver.RootServer("127.0.0.1", args.my_server_port)
+    if args.server_port is None:
+        server.start()
+        return
+
+    #server.daemon = True
+    server.start()
+
+    print("Starting client........")
+
+    client = Client(args.server_ip, args.server_port)
+    client.connect(username=args.username, password=args.password, action=args.action, filename=args.filename, my_server_port=args.my_server_port)
     client.receive_data()
 
-    with open("TP1.pdf", "wb") as file:
+    print(client.received)
+
+    with open(args.filename, "wb") as file:
         for n in range(client.total_segments):
+            print(client.received[n])
             file.write(client.received[n])
 
+    server.stop()
+    print("Stoping internaç server......")
 
 
 if __name__ == '__main__':

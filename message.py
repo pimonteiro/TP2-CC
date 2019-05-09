@@ -10,12 +10,6 @@ class Header:
         self.nsequence = nseq
         self.size = siz
 
-    def __str__(self):
-        return  (   "checksum: " + str(self.checksum) +
-                    ", type: " + str(self.type) +
-                    ", nsequence: " + str(self.nsequence) +
-                    ", size: " + str(self.size) )
-
     def getType(self):
         return self.type
 
@@ -25,11 +19,13 @@ class Header:
     def getSequence(self):
         return self.nsequence
 
+    def getAll(self):
+        return self.checksum, self.type, self.nsequence, self.size
+
     def getChecksum(self):
         return self.checksum
-
     def classToBinary(self):
-        head = struct.pack('LHLc',self.checksum,self.size,self.nsequence,self.type.encode())
+        head = struct.pack('LHLc', self.checksum, self.size, self.nsequence, self.type.encode())
         return head
 
     def binaryToClass(self, head):
@@ -42,8 +38,17 @@ class Header:
         self.nsequence = nseq
         self.size = si
 
-    def getAllFields(self):
-        return (self.checksum, self.size, self.nsequence, self.type)
+    def __str__(self):
+        value = \
+            {
+                "checksum": self.checksum,
+                "type": self.type,
+                "nsequence": self.nsequence,
+                "size": self.size
+            }
+
+        return "header: " + str(value)
+
 
 class Message:
     HEADER_SIZE = 58
@@ -59,14 +64,8 @@ class Message:
     TYPE_FNF = "8"
 
     def __init__(self):
-        self.header = Header(0,0,0,0)
-        self.data = ""  
-
-    def __str__(self):
-        return "HEADER: " + str(self.header) + "\nDATA: " + str(self.data)
-
-    def getHeaderValues(self):
-        return self.header.getAllFields()    
+        self.header = Header(0, 0, 0, 0)
+        self.data = ""
 
     def getType(self):
         return self.header.getType()
@@ -77,18 +76,17 @@ class Message:
     def getData(self):
         return self.data
 
+    def getHeader(self):
+        return self.header.getAll()
+
     def getChecksum(self):
         return self.header.getChecksum()
 
     def classToBinary(self):
         head = self.header.classToBinary()
-        
-        if self.data == "":
-            return head
-
         if self.header.getType() in (Message.TYPE_MMS, Message.TYPE_SYN, Message.TYPE_TSG):
             data = json.dumps(self.data).encode()
-        
+
         else:
             if isinstance(self.data, str):
                 data = self.data.encode()
@@ -99,7 +97,7 @@ class Message:
 
     def binaryToClass(self, mbytes):
         self.header.binaryToClass(mbytes[:Message.HEADER_LENGTH])
-        
+
         if self.header.getType() in (Message.TYPE_MMS, Message.TYPE_SYN, Message.TYPE_TSG):
             self.data = json.loads(mbytes[Message.HEADER_LENGTH:].decode('utf-8'))
 
@@ -110,12 +108,13 @@ class Message:
             self.data = mbytes[Message.HEADER_LENGTH:]
 
     # primeira mensagem cliente -> servidor (1)
-    def makeConnectionMessage(self, username, password, action, filename):
+    def makeConnectionMessage(self, username, password, action, filename, my_server_port):
         data = {
             "username": username,
             "password": password,
             "action": action,
-            "filename": filename
+            "filename": filename,
+            "my_server_port": my_server_port
         }
         che = Message.calculate_checksum(json.dumps(data))
         self.header = Header(che, Message.TYPE_SYN, 0, sys.getsizeof(data))
@@ -130,7 +129,7 @@ class Message:
     # mensagem cliente -> servidor (missing) (5)
     def makeMissingMessage(self, miss):
         data = {
-            "data": miss
+            'data': miss
         }
         che = Message.calculate_checksum(json.dumps(data))
         self.header = Header(che, Message.TYPE_MMS, 0, sys.getsizeof(data))
@@ -145,12 +144,6 @@ class Message:
         self.header = Header(che, Message.TYPE_TSG, 0, sys.getsizeof(data))
         self.data = data
 
-    #@staticmethod
-    #def calculate_checksum(msg):
-    #    assert isinstance(msg, str)
-    #    ordinalSum = sum(ord(x) for x in msg)
-    #    return ordinalSum
-
     @staticmethod
     def calculate_checksum(msg):
         assert isinstance(msg, (bytes, str))
@@ -161,6 +154,15 @@ class Message:
             ordinalSum = sum(x for x in msg)
             return ordinalSum
 
+    def __str__(self):
+        value = \
+            {
+                "header": str(self.header),
+                "data": str(self.data)
+            }
+
+        return "message: " + str(value)
+
     def verifyIntegrity(self):
         dat = self.data
         if isinstance(self.data, dict):
@@ -168,7 +170,7 @@ class Message:
         orig = self.getChecksum()
         givn = Message.calculate_checksum(dat)
 
-        if(orig == givn):
+        if (orig == givn):
             return True
         else:
             return False
