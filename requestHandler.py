@@ -112,14 +112,17 @@ class requestHandler(threading.Thread):
 
         self.conn.set_status(Connection.CLOSED)
 
+        print("Starting temporary client!")
         client = Client(self.conn.get_destIP(), self.my_server_port)
         client.connect(username=self.op["username"], password=self.op["password"], action="get", filename=self.op["filename"],
                        my_server_port=self.my_server_port)
         client.receive_data()
         with open(self.op["username"], "wb") as file:
+            print("Finishing file transfer....")
             for n in range(client.total_segments):
                 file.write(client.received[n])
         self.conn.close()
+        print("Closing temporary client!")
 
 
     def auth(self):

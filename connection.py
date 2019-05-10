@@ -69,7 +69,7 @@ class Connection:
 
         self.__socket.close()
         self.__socket = None
-        self.status = Connection.CLOSED
+        self.set_status(Connection.CLOSED)
 
     def get_SourcePort(self):
         return self.sourcePort
@@ -80,7 +80,6 @@ class Connection:
     def send(self, msg):
         msgbytes = msg.classToBinary()
         assert len(msgbytes) < Connection.MAX_MESSAGE_SIZE
-        print(self)
         self.__socket.sendto(msgbytes, (self.destIp, self.destPort))
 
     def receive(self):
@@ -91,6 +90,9 @@ class Connection:
             msg = None
         return msg, address
 
+    def get_sock_stat(self):
+        return self.__socket is not None
+
     def __str__(self):
         value = \
         {
@@ -98,7 +100,8 @@ class Connection:
             "destPort": self.destPort,
             "sourceIp": self.sourceIp,
             "sourcePort": self.sourcePort,
-            "connected": self.__socket is not None
+            "connected": self.__socket is not None,
+            "status": self.status
         }
 
         return "connection:" + str(value)
