@@ -180,7 +180,9 @@ def main():
         return
 
     print("Internal server starting.....")
-    #server.daemon = True
+    if(args.action == "PUT"):
+        print("PUT")
+        server.oneTime()
     server.start()
 
     print("Starting client........")
