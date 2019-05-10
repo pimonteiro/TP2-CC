@@ -52,7 +52,7 @@ class Header:
 
 class Message:
     HEADER_SIZE = 58
-    HEADER_LENGTH = 25
+    HEADER_LENGTH = struct.calcsize("LHLc")
 
     TYPE_SYN = "1"
     TYPE_ACK = "2"

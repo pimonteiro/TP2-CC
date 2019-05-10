@@ -112,11 +112,11 @@ class requestHandler(threading.Thread):
 
         self.conn.set_status(Connection.CLOSED)
 
-        client = Client("127.0.0.1", self.my_server_port)
-        client.connect(username=self.op["username"], password=self.op["password"], action="get", filename=self.op["filename"], ## data from request received
+        client = Client(self.conn.get_destIP(), self.my_server_port)
+        client.connect(username=self.op["username"], password=self.op["password"], action="get", filename=self.op["filename"],
                        my_server_port=self.my_server_port)
         client.receive_data()
-        with open(self.op["username"], "wb") as file:           ##data from request received
+        with open(self.op["username"], "wb") as file:
             for n in range(client.total_segments):
                 file.write(client.received[n])
         self.conn.close()

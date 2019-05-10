@@ -170,7 +170,7 @@ def parse_arguments():
 def main():
     args = parse_arguments()
 
-    server = rootserver.RootServer("127.0.0.1", args.my_server_port)
+    server = rootserver.RootServer(Connection.get_my_ip(), args.my_server_port)
     if args.server_port is None:
         server.start()
         return

@@ -30,9 +30,18 @@ class Connection:
         self.__socket = socket(AF_INET, SOCK_DGRAM)
         self.status = Connection.DISCONNECTED
 
-        self.__socket.bind(("127.0.0.1", 0))
+        tmp_sock = Connection.get_my_ip()
+        self.__socket.bind((tmp_sock, 0))
         self.sourcePort = self.__socket.getsockname()[1]
         self.sourceIp = self.__socket.getsockname()[0]
+
+    @staticmethod
+    def get_my_ip():
+        s = socket(AF_INET, SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        tmp = s.getsockname()[0]
+        s.close()
+        return tmp
 
     def set_status(self, status):
         assert status in {
@@ -44,6 +53,9 @@ class Connection:
             Connection.CLOSED
         }
         self.status = status
+
+    def get_destIP(self):
+        return self.destIp
 
     def get_status(self):
         return self.status
@@ -68,6 +80,7 @@ class Connection:
     def send(self, msg):
         msgbytes = msg.classToBinary()
         assert len(msgbytes) < Connection.MAX_MESSAGE_SIZE
+        print(self)
         self.__socket.sendto(msgbytes, (self.destIp, self.destPort))
 
     def receive(self):
