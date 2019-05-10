@@ -73,7 +73,9 @@ class Client:
 
         while self.num_received < self.total_segments:
             flag = self.waitAnswer()
-            self.conn.set_status(Connection.RECEIVING_NORMAL)
+
+            if self.type in (Message.TYPE_MMS, Message.TYPE_DAT):
+                self.conn.set_status(Connection.RECEIVING_NORMAL)
 
             if flag == 0:
                 continue # Checksum failed so we discard the packet
@@ -88,14 +90,17 @@ class Client:
                 #self.conn.close()
                 #raise ClientException("Error ao receber dados")
 
-            if self.received.get(self.nsequence) is None:
-                self.num_received += 1
-                self.received[self.nsequence] = self.data
+            if self.type in (Message.TYPE_MMS, Message.TYPE_DAT, Message.TYPE_FIN):
+                if self.received.get(self.nsequence) is None:
+                    self.num_received += 1
+                    self.received[self.nsequence] = self.data
 
             if self.type == Message.TYPE_FIN:
                 missed = self.get_missing()
                 if len(missed) == 0:
                     self.msg.makeMessage("",Message.TYPE_FIN, 0)
+                    self.conn.send(self.msg)
+                    self.conn.send(self.msg)
                     self.conn.send(self.msg)
                     self.conn.close()
                     self.conn.set_status(Connection.CLOSED)
@@ -199,7 +204,7 @@ def main():
         print("Stoping internal server......")
         server.join()
 
-    except Exception :
+    except socket.timeout:
         print("Timeout. Try again later.")
         exit(-1)
 

@@ -104,6 +104,7 @@ class requestHandler(threading.Thread):
 
         #close the scket
         self.conn.close()
+        print("Closing server part.")
         self.conn.set_status(Connection.CLOSED)
 
     def putFile(self):
@@ -180,6 +181,10 @@ class requestHandler(threading.Thread):
             
             except Exception as e:
                 print(str(e))
+                if self.conn.get_sock_stat() == False:
+                    print("Closing server.....")
+                    self.conn.close()
+                    exit(1)
                 self.conn.send(self.msg)
                 retry += 1
 

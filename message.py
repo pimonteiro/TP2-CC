@@ -130,8 +130,9 @@ class Message:
 
     # mensagem cliente -> servidor (missing) (5)
     def makeMissingMessage(self, miss):
+
         data = {
-            'data': list(miss)
+            'data': list(miss)[20]
         }
         che = Message.calculate_checksum(json.dumps(data))
         self.header = Header(che, Message.TYPE_MMS, 0, sys.getsizeof(data))
