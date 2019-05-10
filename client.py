@@ -189,7 +189,6 @@ def main():
         client = Client(args.server_ip, args.server_port)
         client.connect(username=args.username, password=args.password, action=args.action, filename=args.filename, my_server_port=args.my_server_port)
 
-        print(client.conn) ## TODO WHYYYYYYYY
         if client.conn.get_sock_stat() == False:
             print("Client closed")
             return
