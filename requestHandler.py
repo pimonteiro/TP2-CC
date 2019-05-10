@@ -68,7 +68,7 @@ class requestHandler(threading.Thread):
 
             while chunk:
                 chunk = file.read(1024)
-                self.pieces.append(chunk)
+                self.pieces.append(Message.encode_decode(chunk.decode("utf-8")).encode())
 
             file.close()
 

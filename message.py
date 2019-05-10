@@ -1,6 +1,7 @@
 import json
 import struct
 import sys
+import base64
 
 
 class Header:
@@ -177,3 +178,13 @@ class Message:
             return True
         else:
             return False
+
+
+    @staticmethod
+    def encode_decode(msg):
+        translated = ""
+        i = len(msg) - 1
+        while i >= 0:
+            translated = translated + msg[i]
+            i = i - 1
+        return translated
