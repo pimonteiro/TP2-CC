@@ -180,7 +180,7 @@ def main():
         return
 
     print("Internal server starting.....")
-    server.daemon = True
+    #server.daemon = True
     server.start()
 
     print("Starting client........")
