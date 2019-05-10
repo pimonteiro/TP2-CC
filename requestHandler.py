@@ -117,7 +117,7 @@ class requestHandler(threading.Thread):
         client.connect(username=self.op["username"], password=self.op["password"], action="get", filename=self.op["filename"],
                        my_server_port=self.my_server_port)
         client.receive_data()
-        with open(self.op["username"], "wb") as file:
+        with open(self.op["filename"], "wb") as file:
             print("Finishing file transfer....")
             for n in range(client.total_segments):
                 file.write(client.received[n])
