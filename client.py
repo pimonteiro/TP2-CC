@@ -183,10 +183,11 @@ def main():
     if(args.action == "PUT"):
         print("PUT")
         server.oneTime()
+        server.start()
     else:
         print("GET")
         server.stop()
-    server.start()
+
 
     print("Starting client........")
 
@@ -206,7 +207,7 @@ def main():
                 file.write(client.received[n])
 
         print("Stoping internal server......")
-        server.join()
+        #server.join()
 
     except socket.timeout:
         print("Timeout. Try again later.")

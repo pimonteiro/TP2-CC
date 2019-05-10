@@ -4,6 +4,8 @@ import json
 import sys
 import os
 from message import Message
+from client import ClientException
+
 from struct import pack
 from struct import unpack
 from connection import Connection
@@ -128,6 +130,9 @@ class requestHandler(threading.Thread):
             print("Closing temporary client!")
         except socket.timeout:
             print("Timeout, exiting.")
+            exit(-1)
+        except ClientException as ce:
+            print(str(ce))
             exit(-1)
 
 
