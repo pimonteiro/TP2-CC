@@ -56,6 +56,7 @@ class requestHandler(threading.Thread):
 
     
     def updateData(self):
+        print("My data: " + str(self.data))
         self.data = json.loads(self.data.decode('utf-8'))
 
 
@@ -172,7 +173,7 @@ class requestHandler(threading.Thread):
                 print("Recebida: " + str(in_msg))
                 self.getHeaderValues(in_msg.getHeader())
                 
-                if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_MMS, Message.TYPE_FIN):
+                if self.type in (Message.TYPE_DAT, Message.TYPE_TSG, Message.TYPE_FIN, Message.TYPE_MMS):
                     self.data = in_msg.getData()
 
                 return
@@ -208,7 +209,7 @@ class requestHandler(threading.Thread):
 
 
     def process_missing(self):
-        self.updateData()
+        #self.updateData()
         missing = self.data["data"]
         size = len(missing)
 

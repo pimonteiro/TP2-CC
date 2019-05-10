@@ -114,11 +114,10 @@ class Client:
 
     def waitAnswer(self):
         retry = 0
-        self.conn.set_timeout(1)
+        self.conn.set_timeout(10)
 
         while(retry < 3):
             try:
-                #print(str(self.conn))
                 in_msg, _ = self.conn.receive()
                 print("Recebida: " + str(in_msg))
                 # Verifying if message is None means that checksum failed
@@ -139,14 +138,14 @@ class Client:
                     missed = self.get_missing()
                     self.msg.makeMissingMessage(missed)
                     self.conn.send(self.msg)
-                    print("Enviada missing: " + str(self.msg))
+                    print("Enviada anterior: " + str(self.msg))
                     self.conn.set_status(Connection.RECEIVING_MISSING)
                 elif self.conn.get_status() == Connection.CONNECTING:
-                    self.msg.makeMessage("",Message.TYPE_ACK, 0)
-                    print("Enviada missing: " + str(self.msg))
+                    print("Enviada anterior: " + str(self.msg))
                     self.conn.send(self.msg)
-                #else:
-                    #self.conn.send(self.msg)
+                else:
+                    print("Enviada anterior: " + str(self.msg))
+                    self.conn.send(self.msg)
                 retry += 1
 
         raise socket.timeout
@@ -176,29 +175,33 @@ def main():
         return
 
     print("Internal server starting.....")
-    #server.daemon = True
+    server.daemon = True
     server.start()
 
     print("Starting client........")
 
-    client = Client(args.server_ip, args.server_port)
-    client.connect(username=args.username, password=args.password, action=args.action, filename=args.filename, my_server_port=args.my_server_port)
+    try:
+        client = Client(args.server_ip, args.server_port)
+        client.connect(username=args.username, password=args.password, action=args.action, filename=args.filename, my_server_port=args.my_server_port)
 
-    print(client.conn) ## TODO WHYYYYYYYY
-    if client.conn.get_sock_stat() == False:
-        print("Client closed")
-        return
-    else:
-        print(client.conn.get_status())
-    client.receive_data()
+        print(client.conn) ## TODO WHYYYYYYYY
+        if client.conn.get_sock_stat() == False:
+            print("Client closed")
+            return
+        else:
+            print(client.conn.get_status())
+        client.receive_data()
+        with open(args.filename, "wb") as file:
+            print("Finishing file transfer....")
+            for n in range(client.total_segments):
+                file.write(client.received[n])
 
-    with open(args.filename, "wb") as file:
-        print("Finishing file transfer....")
-        for n in range(client.total_segments):
-            file.write(client.received[n])
+        print("Stoping internal server......")
+        server.join()
 
-    print("Stoping internal server......")
-    server.join()
+    except Exception :
+        print("Timeout. Try again later.")
+        exit(-1)
 
 
 if __name__ == '__main__':
