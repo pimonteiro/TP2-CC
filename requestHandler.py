@@ -114,17 +114,21 @@ class requestHandler(threading.Thread):
 
         self.conn.set_status(Connection.CLOSED)
 
-        print("Starting temporary client!")
-        client = Client(self.conn.get_destIP(), self.my_server_port)
-        client.connect(username=self.op["username"], password=self.op["password"], action="get", filename=self.op["filename"],
-                       my_server_port=self.my_server_port)
-        client.receive_data()
-        with open(self.op["filename"], "wb") as file:
-            print("Finishing file transfer....")
-            for n in range(client.total_segments):
-                file.write(client.received[n])
-        self.conn.close()
-        print("Closing temporary client!")
+        try:
+            print("Starting temporary client!")
+            client = Client(self.conn.get_destIP(), self.my_server_port)
+            client.connect(username=self.op["username"], password=self.op["password"], action="get", filename=self.op["filename"],
+                           my_server_port=self.my_server_port)
+            client.receive_data()
+            with open(self.op["filename"], "wb") as file:
+                print("Finishing file transfer....")
+                for n in range(client.total_segments):
+                    file.write(client.received[n])
+            self.conn.close()
+            print("Closing temporary client!")
+        except socket.timeout:
+            print("Timeout, exiting.")
+            exit(-1)
 
 
     def auth(self):
@@ -139,10 +143,11 @@ class requestHandler(threading.Thread):
     def sendLast(self, index=-1):
         if(index == -1):
             chunk = self.pieces[self.total_segments-1]
+            index = self.total_segments - 1
         else:
             chunk = self.pieces[index]
 
-        self.msg.makeMessage(chunk, Message.TYPE_FIN, self.total_segments-1)
+        self.msg.makeMessage(chunk, Message.TYPE_FIN, index)
         print("Enviada: " + str(self.msg))
         self.conn.send(self.msg)
 
@@ -222,7 +227,7 @@ class requestHandler(threading.Thread):
             n = missing[i]
             self.sendChunk(n)
 
-        self.sendLast(size-1)
+        self.sendLast(missing.pop())
 
 
     
