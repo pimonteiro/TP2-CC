@@ -183,6 +183,9 @@ def main():
     if(args.action == "PUT"):
         print("PUT")
         server.oneTime()
+    else:
+        print("GET")
+        server.stop()
     server.start()
 
     print("Starting client........")
@@ -208,7 +211,9 @@ def main():
     except socket.timeout:
         print("Timeout. Try again later.")
         exit(-1)
-
+    except ClientException as ce:
+        print(str(ce))
+        exit(-1)
 
 if __name__ == '__main__':
     main()
