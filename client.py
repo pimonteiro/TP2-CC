@@ -93,7 +93,7 @@ class Client:
             if self.type in (Message.TYPE_MMS, Message.TYPE_DAT, Message.TYPE_FIN):
                 if self.received.get(self.nsequence) is None:
                     self.num_received += 1
-                    self.received[self.nsequence] = Message.encode_decode(self.data.decode("utf-8")).encode()
+                    self.received[self.nsequence] = Message.decode(self.data)
 
             if self.type == Message.TYPE_FIN:
                 missed = self.get_missing()

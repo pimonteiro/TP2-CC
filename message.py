@@ -150,7 +150,7 @@ class Message:
 
     @staticmethod
     def calculate_checksum(msg):
-        assert isinstance(msg, (bytes, str))
+        assert isinstance(msg, (bytes, str, bytearray))
         if isinstance(msg, str):
             ordinalSum = sum(ord(x) for x in msg)
             return ordinalSum
@@ -181,10 +181,22 @@ class Message:
 
 
     @staticmethod
-    def encode_decode(msg):
-        translated = ""
+    def encode(msg):
+        translated = bytearray()
+        msg = bytes(msg)
         i = len(msg) - 1
         while i >= 0:
-            translated = translated + msg[i]
+            translated.append(msg[i])
             i = i - 1
+        return translated   
+
+
+    @staticmethod
+    def decode(msg):
+        translated = bytearray()
+        msg = bytearray(msg)
+
+        while msg:
+            translated.append(msg.pop())
+
         return translated
